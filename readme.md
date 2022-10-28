@@ -8,6 +8,7 @@ a simple webshell build in PHP 7.4 for penetration testing and educational purpo
 - [x] change glob() to scandir() cuz glob() sucks
 - [x] files table improvement
 - [x] add function fsize, perms, lasmod
+- [ ] fix ip address blank in some server idk why
 - [ ] implementation (i'm lazy as fuck)
 
 ## _features_
