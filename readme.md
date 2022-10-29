@@ -4,14 +4,8 @@ a simple webshell build in PHP 7.4 for penetration testing and educational purpo
 ![licence](https://img.shields.io/badge/LICENE-GPL2.0-ebcb8b?style=flat-square)
 ![version](https://img.shields.io/badge/VERSION-1.0-a3be8c?style=flat-square)
 
-## _todo - minor change and little bit improvement_
-- [x] change glob() to scandir() cuz glob() sucks
-- [x] files table improvement
-- [x] add function fsize, perms, lasmod
-- [ ] fix ip address blank in some server idk why
-- [ ] implementation (i'm lazy as fuck)
-
 ## _features_
+- INFO
 - MAILER
 - TERMINAL
 - SPAWNER
@@ -20,6 +14,7 @@ a simple webshell build in PHP 7.4 for penetration testing and educational purpo
   - MARIJUANA
   - ADMINER
   - PHPINFO
+  - PHP.INI
   - B374K
   - WSO
 - CREATE DIR
