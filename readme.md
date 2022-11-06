@@ -27,6 +27,10 @@ a simple webshell build in PHP 7.4 for penetration testing and educational purpo
   - etc/shadow
   - etc/group
   - etc/fstab
+  - etc/os-release
+  - etc/mtab
+  - etc/resolv.conf
+  - etc/ssh/ssh_config
   - Server IP
   - Client IP
   - PHP Version
