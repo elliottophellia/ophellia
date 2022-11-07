@@ -7,9 +7,9 @@ a simple webshell build in PHP 7.4 for penetration testing and educational purpo
 ## _features_
 - Mailer
 - Terminal
-- Spawner
+- Spawner (All webshells work in PHP7+)
   - Web Console
-  - IndoXploit ( PHP 5 Only )
+  - IndoXploit
   - Marijuana 
   - Adminer
   - PHPinfo
