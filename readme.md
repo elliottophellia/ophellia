@@ -1,60 +1,92 @@
 ![logo](https://i.ibb.co/fS9N2QV/ophellia.png)
-a simple webshell build in PHP 7.4 for penetration testing and educational purposes only, all kinds of illegal use is prohibited and developer are not responsible for any misuse or damage caused by this program.<br/>
-![php](https://img.shields.io/badge/PHP-7.4-bf616a?style=flat-square)
+a simple webshell build in PHP 8.2 for penetration testing and educational purposes only, all kinds of illegal use is prohibited and developer are not responsible for any misuse or damage caused by this program.<br/>
+![php](https://img.shields.io/badge/PHP-8.2-bf616a?style=flat-square)
 ![licence](https://img.shields.io/badge/LICENE-GPL2.0-ebcb8b?style=flat-square)
-![version](https://img.shields.io/badge/VERSION-1.2.1-a3be8c?style=flat-square)
+![version](https://img.shields.io/badge/VERSION-1.3.0-a3be8c?style=flat-square)
+
+## _todo_
+
+- [ ] **Has to changes**
+  - [ ] Reload the file after modification
+  - [ ] Reload the file name after modification
+  - [ ] Reload the file after creation
+  - [ ] New UI for info
+  - [ ] New UI for menu
+  - [ ] Send mail with attachment
+  - [ ] Create file in root directory
+  - [ ] Create directory in root directory
+  - [ ] Fix cannot using terminal in other menu but in file manager
+  - [ ] Add empty input validation
+    - [ ] Create file
+    - [ ] Create directory
+    - [ ] Send mail
+    - [ ] Send mail with attachment
+    - [ ] Rename file
+    - [ ] Bind shell
+    - [ ] Reverse shell
+    - [ ] Terminal
+- [ ] **Has to removes**
+  - [ ] /etc/os-release
+  - [ ] /etc/mtab
+  - [ ] /etc/resolv.conf
+  - [ ] /ssh/ssh_config
+  - [ ] /etc/fstab
+  - [ ] /etc/group
+  - [ ] /etc/shadow
+  - [ ] /etc/hosts
+  - [ ] /etc/passwd
+  - [ ] Dropdown menu for spawning webshell
 
 ## _features_
-- Mailer
-- Terminal
-- Spawner (All webshells work in PHP7+)
-  - Web Console
-  - IndoXploit
-  - Marijuana 
-  - Adminer
-  - PHPinfo
-  - PHP.ini (Bypass Disable Function)
-  - b374k
-  - Wso
-  - R57
-  - C99
-- Information
-  - System
-  - User
-  - Free Space
-  - etc/passwd
-  - etc/host
-  - etc/shadow
-  - etc/group
-  - etc/fstab
-  - etc/os-release
-  - etc/mtab
-  - etc/resolv.conf
-  - etc/ssh/ssh_config
-  - Server IP
-  - Client IP
-  - PHP Version
-  - Disable Function
-  - Safe Mode
-- Create File
-- Create Directory
+- File Manager
+  - Rename
+    - File
+    - Directory
+  - Delete
+    - File
+    - Directory
+  - Edit file
+  - File size
+  - File type
+  - File permission
+  - File owner/group
+  - File last modified
 - Upload File
   - Current Directory
   - Root Directory
 - Network
   - Bind Shell
-      - C
-      - Perl
-      - Ruby
-      - Python
+    - C
+    - Perl 
+    - Ruby
+    - Python
   - Reverse Shell
-      - C
-      - Perl
-      - Ruby
-      - Python
+    - C
+    - Perl
+    - Ruby
+    - Python
+- Mailer
+  - Send Mail
+  - Send Mail with Attachment
+- Information
+  - User
+  - System
+  - Server IP
+  - Client IP
+  - Safe Mode
+  - Free Space
+  - Disable Function
+  - Disable Function
+- Create File
+  - Current Directory
+  - Root Directory
+- Create Directory
+  - Current Directory
+  - Root Directory
+- Terminal
+  - Execute command
 - Login Session
-  - lovepalestine
-- Encrypted Function & URL
+  - Password : lovepalestine
 
 ## _license_
 
