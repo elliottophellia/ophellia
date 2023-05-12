@@ -1,0 +1,153 @@
+/* 
+
+    O p h e l l i a   W e b s h e l l 
+                 v1.3.0
+
+               Disclaimer:
+
+    Any actions and or activities related to the material contained within this web shell is solely your responsibility
+    The misuse of the information in this web shell can result in criminal charges brought against the persons in question
+    The author will not be held responsible in the event any criminal charges be brought against any individuals misusing the information in this web shell to break the law.
+
+*/
+@import url("https://fonts.googleapis.com/css2?family=Roboto&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap");
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  display: block;
+  background-color: #2e3440;
+  color: #e5e9f0;
+  font-family: roboto, sans-serif;
+  font-size: 11px;
+  line-height: 2em;
+  text-align: center;
+}
+
+form {
+  display: inline;
+}
+
+a:hover {
+  color: #7f7f7f;
+}
+
+a {
+  color: #e5e9f0;
+  text-decoration: none;
+}
+
+b {
+  font-family: roboto, sans-serif;
+  letter-spacing: 1.6px;
+}
+
+table {
+  width: 100%;
+}
+
+th {
+  border: #e5e9f0 1px solid;
+  font-size: 15px;
+}
+
+td {
+  border: #e5e9f0 1px solid;
+}
+
+input,
+textarea,
+select,
+button {
+  color: #e5e9f0;
+  background-color: #2e3440;
+  border: 1px solid #e5f0e9;
+  font-size: 11px;
+}
+
+textarea {
+  width: 100%;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+#l {
+  text-align: left;
+}
+
+#r {
+  text-align: right;
+}
+
+#c {
+  text-align: center;
+}
+
+#emem {
+  width: 15em;
+}
+
+#ememm {
+  width: 32.4em;
+}
+
+.inf {
+  color: #7f7f7f;
+}
+
+::placeholder {
+  color: #e5e9f0;
+  opacity: 1;
+}
+
+:-ms-input-placeholder {
+  color: #e5e9f0;
+}
+
+::-ms-input-placeholder {
+  color: #e5e9f0;
+}
+
+@media screen and (max-width: 600px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+@supports (-moz-appearance: none) {
+  #ememm {
+    width: 32em;
+  }
+  b {
+    letter-spacing: 1.6px;
+  }
+}
+::-webkit-scrollbar {
+  width: 4px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  -webkit-border-radius: 10px;
+  border-radius: 10px;
+  -webkit-box-shadow: inset 0 0 6px #2e3440;
+}
+::-webkit-scrollbar-thumb {
+  background: #e5e9f0;
+  -webkit-border-radius: 0;
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:window-inactive {
+  background: #e5e9f0;
+}
+
+img[src*="https://cdn.000webhost.com/000webhost/logo/footer-powered-by-000webhost-white2.png"]
+{
+  display: none !important;
+}
