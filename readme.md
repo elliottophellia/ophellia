@@ -1,32 +1,15 @@
+![screenshot](https://raw.githubusercontent.com/elliottophellia/ophellia/master/screenshot.png)
 ![logo](https://i.ibb.co/fS9N2QV/ophellia.png)
 a simple webshell build in PHP 8.2 for penetration testing and educational purposes only, all kinds of illegal use is prohibited and developer are not responsible for any misuse or damage caused by this program.<br/>
 ![php](https://img.shields.io/badge/PHP-8.2-bf616a?style=flat-square)
 ![licence](https://img.shields.io/badge/LICENE-GPL2.0-ebcb8b?style=flat-square)
-![version](https://img.shields.io/badge/VERSION-1.3.0-a3be8c?style=flat-square)
+![version](https://img.shields.io/badge/VERSION-1.3.1-a3be8c?style=flat-square)
 
-## _V1.3.0 - 'Kirara Magic'_
+## _V1.3.1 - 'Neko Hacker'_
 
 - **What is change?**
-  - [x] Re-write some function and make it more efficient
-  - [x] Re-write CSS for better UI
-  - [x] Re-write HEX bypass from array to direct string
-  - [x] Fix bug where you can't using terminal outside file manager
-  - [x] Fix bug where 'back' button kinda stupid in some function
-  - [x] Fix bug where you can make file with blank name
-  - [x] Removed
-    - [x] /etc/os-release
-    - [x] /etc/mtab
-    - [x] /etc/resolv.conf
-    - [x] /ssh/ssh_config
-    - [x] /etc/fstab
-    - [x] /etc/group
-    - [x] /etc/shadow
-    - [x] /etc/hosts
-    - [x] /etc/passwd
-    - [x] Dropdown menu for spawning webshell
-
-- **Known Issue**
-   - [ ] Bind and Reverse Shells are **Untested** please create issue about it if something error
+  - [x] FIX bind and reverse shell in network tools
+  - [x] FIX file labled as folder in file manager
 
 ## _support me_
 
@@ -77,7 +60,7 @@ a simple webshell build in PHP 8.2 for penetration testing and educational purpo
 - Create Directory
 - Terminal
 - Login Session
-  - Password : kiraramagic
+  - Password : nekohacker
 
 ## _license_
 
