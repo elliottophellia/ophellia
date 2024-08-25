@@ -1,20 +1,40 @@
-![screenshot](https://raw.githubusercontent.com/elliottophellia/ophellia/master/screenshot.png)
 ![logo](https://i.ibb.co/fS9N2QV/ophellia.png)
-a simple webshell build in PHP 8.2 for penetration testing and educational purposes only, all kinds of illegal use is prohibited and developer are not responsible for any misuse or damage caused by this program.<br/>
-![php](https://img.shields.io/badge/PHP-8.2-bf616a?style=flat-square)
-![licence](https://img.shields.io/badge/LICENE-GPL2.0-ebcb8b?style=flat-square)
-![version](https://img.shields.io/badge/VERSION-1.3.1-a3be8c?style=flat-square)
+![screenshot](/assets/images/2.png)
 
-## _V1.3.1 - 'Neko Hacker'_
+<p align="center">
+Unleash the power of Ophellia: A cutting-edge PHP 8 webshell designed for advanced penetration testing and educational exploration. Harness its capabilities responsibly – illegal use is strictly prohibited. Elevate your cybersecurity skills with this powerful tool, crafted for those who seek knowledge and push the boundaries of web security.<br/><br/>
+<img src="https://img.shields.io/badge/PHP-8.X.X-bf616a?style=flat-square" alt="PHP"/>
+<img src="https://img.shields.io/badge/LICENSE-GPL3.0-ebcb8b?style=flat-square" alt="License"/>
+<img src="https://img.shields.io/badge/VERSION-2.0.0-a3be8c?style=flat-square" alt="Version"/>
+</p>
 
-- **What is change?**
-  - [x] FIX bind and reverse shell in network tools
-  - [x] FIX file labled as folder in file manager
+## _V2.0.0 - 'HoneyComeBear'_
 
-## _support me_
+- **What's new?**
+  - [x] Restructured code into object-oriented design with `Elliottophellia` class
+  - [x] Enhanced security with improved password handling and secure file operations
+  - [x] Implemented comprehensive error handling with try-catch blocks
+  - [x] Upgraded UI with more clean and modern styles and modal dialogs for success and error messages
+  - [x] Added new advanced command execution function
+  - [x] Improved system information display
+  - [x] Enhanced file manager with more detailed file information
+  - [x] Updated network tools implementation
+  - [x] Improved file editing and creation forms
+  - [x] Introduced version control with `VERSION` constant
+  - [x] Improved responsive design for better mobile compatibility
+  - [x] Integrated Font Awesome icons and Google Fonts for enhanced visuals
+  - [x] Updated footer with detailed copyright information and relevant links
+  - [x] Removed code obfuscation for improved readability and maintainability
+  - [x] Added download functionality to file manager
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/elliottophellia)
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://paypal.me/elliottophellia)
+
+## _scans_
+
+| VENDOR | RESULT | DESCRIPTION | DATE |
+|--------|--------|-------------| -----|
+| VirusTotal | 0/65 | No security vendors flagged this file as malicious | 2024-08-25 11:10:18 UTC |
+| Hybrid Analysis | 0/24 | AV Detection: Marked as clean | 08/25/2024 11:15:44 (UTC) |
+| ClamAV | 0/8697733 | Scanned files: 1 Infected files: 0 | 2024:08:25 18:42:30 |
 
 ## _features_
 
@@ -26,14 +46,16 @@ a simple webshell build in PHP 8.2 for penetration testing and educational purpo
     - File
     - Directory
   - Edit
-    - file
+    - File
+  - Download
+    - File
   - File size
   - File permission
   - File owner/group
   - File last modified
 - Upload File
-  - Current Directory
-  - Root Directory
+  - To Path
+  - To Root
 - Network
   - Bind Shell
     - C
@@ -56,25 +78,38 @@ a simple webshell build in PHP 8.2 for penetration testing and educational purpo
   - Free Space
   - Disable Function
   - Disable Function
-- Create File
-- Create Directory
-- Terminal
+- Create New File
+- Create New Directory
+- Execute Command
 - Login Session
-  - Password : nekohacker
+  - Password : honeyconmebear
 
-## _license_
+## _screenshot_
 
-GNU GENERAL PUBLIC LICENSE<br/>
-Version 2, June 1991
-
-Copyright (C) 1989, 1991 Free Software Foundation, Inc.,<br/>
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA<br/>
-Everyone is permitted to copy and distribute verbatim copies<br/>
-of this license document, but changing it is not allowed.
+|   |   |
+|------------|------------|
+| ![screenshot 1](/assets/images/1.png) | ![screenshot 2](/assets/images/2.png) |
+| ![screenshot 3](/assets/images/3.png) | ![screenshot 4](/assets/images/4.png) |
+| ![screenshot 5](/assets/images/5.png) | ![screenshot 6](/assets/images/6.png) |
 
 ## _contribute_
 
-if you want to contribute to this project, you can fork this project and make a pull request, or you can contact me on [twitter](https://twitter.com/elliottophellia) or [email](mailto:me@rei.my.id)
+We welcome contributions to this project. If you'd like to contribute, please follow these steps:
+
+1. Fork the repository
+2. Create a new branch for your feature or bug fix
+3. Make your changes and commit them with clear, descriptive messages
+4. Push your changes to your fork
+5. Submit a pull request to the main repository
+
+For major changes, please open an issue first to discuss what you would like to change.
+
+If you have any questions or need further assistance, you can reach out to the project maintainer:
+
+- Email: [me@rei.my.id](mailto:me@rei.my.id)
+- Twitter: [@elliottophellia](https://twitter.com/elliottophellia)
+
+We appreciate your interest in improving this project!
 
 ## _reference_
 
@@ -82,8 +117,26 @@ if you want to contribute to this project, you can fork this project and make a 
 - [MARIJUANA](https://github.com/0x5a455553/MARIJUANA)
 - [INDOXPLOIT](https://github.com/linuxsec/indoxploit-shell)
 
+## _license_
+
+```
+Ophellia
+Copyright (C) 2024  Reidho Satria
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+```
+
 ## _disclaimer_
 
-Any actions and or activities related to the material contained within this web shell is solely your responsibility<br/>
-The misuse of the information in this web shell can result in criminal charges brought against the persons in question<br/>
-The author will not be held responsible in the event any criminal charges be brought against any individuals misusing the information in this web shell to break the law.
+The user of this web shell bears full responsibility for any actions or activities related to the materials contained herein. Misuse of the information provided in this web shell may result in criminal charges against the individuals involved. The author explicitly disclaims any liability for criminal charges or legal consequences arising from the misuse of this web shell's information for unlawful purposes.
