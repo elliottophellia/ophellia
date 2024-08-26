@@ -1,5 +1,5 @@
 ![logo](/assets/images/ophellia.png)
-![screenshot](/assets/images/2.png)
+![screenshot](/assets/images/1.png)
 
 <p align="center">
 A cutting-edge PHP 7.4+ webshell designed for advanced penetration testing and educational exploration. Harness its capabilities responsibly – illegal use is strictly prohibited. Elevate your cybersecurity skills with this powerful tool, crafted for those who seek knowledge and push the boundaries of web security.<br/><br/>
@@ -91,9 +91,8 @@ A cutting-edge PHP 7.4+ webshell designed for advanced penetration testing and e
 
 |   |   |
 |------------|------------|
-| ![screenshot 1](/assets/images/1.png) | ![screenshot 2](/assets/images/2.png) |
-| ![screenshot 3](/assets/images/3.png) | ![screenshot 4](/assets/images/4.png) |
-| ![screenshot 5](/assets/images/5.png) | ![screenshot 6](/assets/images/6.png) |
+| ![screenshot 1](/assets/images/1.png) | ![screenshot 3](/assets/images/3.png) |
+| ![screenshot 2](/assets/images/2.png) | ![screenshot 4](/assets/images/4.png) |
 
 ## _contribute_
 
