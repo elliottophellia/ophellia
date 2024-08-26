@@ -637,7 +637,6 @@ footer {
     left: 0;
     width: 100%;
     background-color: var(--bg-color);
-    border: 1px solid var(--accent-color);
     border-top: none;
     padding: 0;
     z-index: 1000;
@@ -653,7 +652,7 @@ footer {
   }
 
   .nav-menu li:last-child {
-    border-bottom: none;
+    border-bottom: 2px solid var(--accent-color);
   }
 
   .nav-menu li a {
