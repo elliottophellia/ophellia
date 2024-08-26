@@ -10,7 +10,9 @@ github.com/elliottophellia/ophellia
  */
 
 // Configuration
-const VERSION = '2.0.0';
+const VERSION = '2.0.0-mocha';
+// you can change theme by simply change version with -theme 
+// eg. VERSION = '2.0.0-dark';
 const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4iR2'; // honeycomebear
 // Use "<?php echo password_hash('your_new_password', PASSWORD_BCRYPT);" to generate a new password hash
 // Or go to https://onlinephp.io/password-hash ($algo = PASSWORD_BCRYPT, $cost = 10)

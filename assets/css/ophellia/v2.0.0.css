@@ -399,7 +399,7 @@ main {
 }
 
 .nothing {
-  color: var(--bg-color);
+  color: transparent;
 }
 
 .hamburger {

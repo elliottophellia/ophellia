@@ -28,6 +28,7 @@ A cutting-edge PHP 7.4+ webshell designed for advanced penetration testing and e
   - [x] Removed code obfuscation for improved readability and maintainability
   - [x] Added download functionality to file manager
   - [x] Upgraded password hashing mechanism from MD5 to bcrypt using password_hash() and password_verify()
+  - [x] Added Theme Changer feature for changing the UI theme
 
 
 ## _scans_
@@ -39,6 +40,18 @@ A cutting-edge PHP 7.4+ webshell designed for advanced penetration testing and e
 | ClamAV | 0/8697733 | Scanned files: 1 Infected files: 0 | 2024:08:25 18:42:30 |
 
 ## _Features_
+
+### _Theme_
+```
+you can change theme by simply change VERSION with -theme
+eg. VERSION = '2.0.0-pastel';
+```
+- Themes
+  - dark
+  - mocha (personal favourite)
+  - pastel
+  - sunset
+  - retro
 
 ### _File Management_
 - Comprehensive file operations:
