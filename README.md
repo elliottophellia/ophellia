@@ -1,9 +1,10 @@
-![logo](https://i.ibb.co/fS9N2QV/ophellia.png)
+![logo](/assets/images/ophellia.png)
 ![screenshot](/assets/images/2.png)
 
 <p align="center">
-Unleash the power of Ophellia: A cutting-edge PHP 8 webshell designed for advanced penetration testing and educational exploration. Harness its capabilities responsibly – illegal use is strictly prohibited. Elevate your cybersecurity skills with this powerful tool, crafted for those who seek knowledge and push the boundaries of web security.<br/><br/>
-<img src="https://img.shields.io/badge/PHP-8.X.X-bf616a?style=flat-square" alt="PHP"/>
+A cutting-edge PHP 7.4+ webshell designed for advanced penetration testing and educational exploration. Harness its capabilities responsibly – illegal use is strictly prohibited. Elevate your cybersecurity skills with this powerful tool, crafted for those who seek knowledge and push the boundaries of web security.<br/><br/>
+<img src="https://img.shields.io/badge/PHP-7.4.X-bf616a?style=flat-square" alt="PHP"/>
+<img src="https://img.shields.io/badge/PHP-8.X.X-88c0d0?style=flat-square" alt="PHP"/>
 <img src="https://img.shields.io/badge/LICENSE-GPL3.0-ebcb8b?style=flat-square" alt="License"/>
 <img src="https://img.shields.io/badge/VERSION-2.0.0-a3be8c?style=flat-square" alt="Version"/>
 </p>
@@ -36,53 +37,54 @@ Unleash the power of Ophellia: A cutting-edge PHP 8 webshell designed for advanc
 | Hybrid Analysis | 0/24 | AV Detection: Marked as clean | 08/25/2024 11:15:44 (UTC) |
 | ClamAV | 0/8697733 | Scanned files: 1 Infected files: 0 | 2024:08:25 18:42:30 |
 
-## _features_
+## _Features_
 
-- File Manager
-  - Rename
-    - File
-    - Directory
-  - Delete
-    - File
-    - Directory
-  - Edit
-    - File
-  - Download
-    - File
-  - File size
-  - File permission
-  - File owner/group
-  - File last modified
-- Upload File
-  - To Path
-  - To Root
-- Network
-  - Bind Shell
-    - C
-    - Perl
-    - Ruby
-    - Python
-  - Reverse Shell
-    - C
-    - Perl
-    - Ruby
-    - Python
-- Mailer
-  - Send Mail
-- Information
-  - User
-  - System
-  - Server IP
-  - Client IP
-  - Safe Mode
-  - Free Space
-  - Disable Function
-  - Disable Function
-- Create New File
-- Create New Directory
-- Execute Command
-- Login Session
-  - Password : honeyconmebear
+### _File Management_
+- Comprehensive file operations:
+  - Rename files and directories
+  - Delete files and directories
+  - Edit file contents
+  - Download files
+- Detailed file information:
+  - Size
+  - Permissions
+  - Owner/Group
+  - Last modified timestamp
+
+### _File Upload_
+- Flexible upload options:
+  - Upload to current path
+  - Upload to server root directory
+
+### _Networking_
+- Advanced shell capabilities:
+  - Bind Shell (C, Perl, Ruby, Python)
+  - Reverse Shell (C, Perl, Ruby, Python)
+
+### _Communication_
+- Integrated mailing functionality:
+  - Send emails directly from the interface
+
+### _System Information_
+- Comprehensive system details:
+  - User information
+  - System specifications
+  - Server IP address
+  - Client IP address
+  - PHP Safe Mode status
+  - Available disk space
+  - Disabled PHP functions
+
+### _File and Directory Creation_
+- Create new files with custom content
+- Create new directories
+
+### _Command Execution_
+- Execute system commands directly from the interface
+
+### _Security_
+- Not so Secure but practical login system:
+  - Default password: honeyconmebear
 
 ## _screenshot_
 
