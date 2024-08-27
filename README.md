@@ -30,6 +30,7 @@ A cutting-edge PHP 7.4+ webshell designed for advanced penetration testing and e
   - [x] Upgraded password hashing mechanism from MD5 to bcrypt using password_hash() and password_verify()
   - [x] Added Theme Changer feature for changing the UI theme
   - [x] Added tmp shell for more capable bypass abilities
+  - [x] Added obfuscated shell for more capable bypass abilities
 
 
 ## _scans_
