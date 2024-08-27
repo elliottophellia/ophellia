@@ -1,11 +1,9 @@
 :root {
-    --bg-color: #A36361;
-    --text-color: #2E2E2E;
-    --accent-color: #D3A29D;
-    --secondary-color: #E8B298;
-    --highlight-color: #EECC8C;
-    --tertiary-color: #BDD1C5;
-    --quaternary-color: #9EABA2;
+    --bg-color: #e6e6d7;
+    --text-color: #2c2914;
+    --accent-color: #6e4509;
+    --secondary-color: #0a3720;
+    --highlight-color: #651d2e;
 }
 
 * {
@@ -282,7 +280,7 @@
   
   .info-row:last-child .info-key,
   .info-row:last-child .info-value {
-    border-bottom: none;
+    border-bottom: 1px solid var(--accent-color);
   }
   
   .modal {

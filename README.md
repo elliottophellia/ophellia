@@ -29,6 +29,7 @@ A cutting-edge PHP 7.4+ webshell designed for advanced penetration testing and e
   - [x] Added download functionality to file manager
   - [x] Upgraded password hashing mechanism from MD5 to bcrypt using password_hash() and password_verify()
   - [x] Added Theme Changer feature for changing the UI theme
+  - [x] Added tmp shell for more capable bypass abilities
 
 
 ## _scans_
@@ -47,8 +48,12 @@ you can change theme by simply change VERSION with -theme
 eg. VERSION = '2.0.0-pastel';
 ```
 - Themes
+  - light
   - dark
+  - latte
   - mocha (personal favourite)
+  - frappe
+  - macchiato
   - pastel
   - sunset
   - retro

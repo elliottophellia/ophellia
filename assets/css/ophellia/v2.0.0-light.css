@@ -283,7 +283,7 @@ main {
 
 .info-row:last-child .info-key,
 .info-row:last-child .info-value {
-  border-bottom: none;
+  border-bottom: 1px solid var(--accent-color);
 }
 
 .modal {
