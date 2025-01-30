@@ -161,3 +161,5 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ## _disclaimer_
 
 The user of this web shell bears full responsibility for any actions or activities related to the materials contained herein. Misuse of the information provided in this web shell may result in criminal charges against the individuals involved. The author explicitly disclaims any liability for criminal charges or legal consequences arising from the misuse of this web shell's information for unlawful purposes.
+
+[<img src="https://api.gitsponsors.com/api/badge/img?id=558443817" height="20">](https://api.gitsponsors.com/api/badge/link?p=gUPVlS9zAwC4yT/z4RduXE1WkjUMFpTKSbjjF20/7mTKJnN1qgaR2ad1d3V0MYI5EH6/DWJFUM8xfYDMTULh0WONWJK9ipIIkb0B1QmEss8zlf7xoq1q2MbXohSktGy7nzI0jkrJaF37XCpxA3Yz7XAjiejiZ8gAEj28u1IZNFU=)
