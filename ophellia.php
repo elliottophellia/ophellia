@@ -3,6 +3,9 @@
 const VERSION = '2.1.0-light';
 const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4iR2';
 
+// Buffer for storing alerts to display later
+$alertMessages = [];
+
 function hexToString(string $hex): string {
     return pack('H*', $hex);
 }
@@ -163,6 +166,11 @@ function fileManager(string $dir): void {
     echo '</tbody></table></div>';
 }
 
+function showAlert(string $message, string $type = 'success'): void {
+    global $alertMessages;
+    $alertMessages[] = ['message' => $message, 'type' => $type];
+}
+
 function viewFile(string $file): void {
     $content = htmlspecialchars(file_get_contents($file));
     
@@ -220,10 +228,8 @@ function editFile(string $file): void {
         file_put_contents($file, $_POST['content']);
         // Instead of redirecting, just reset the POST data
         $_POST = array();
-        // Display file manager instead of edit form
-        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-            <p>File saved successfully!</p>
-        </div>';
+        // Display success alert and file manager
+        showAlert("File saved successfully!", "success");
         fileManager($dirname);
         return;
     }
@@ -246,10 +252,7 @@ function editFile(string $file): void {
 function newFile(string $dir): void {
     if (isset($_POST['filename']) && isset($_POST['content'])) {
         if (empty($_POST['filename'])) {
-            echo '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-                <p>Error: File name cannot be empty!</p>
-            </div>';
-            // Show the form again
+            showAlert("File name cannot be empty!", "error");
             displayNewFileForm($dir);
             return;
         }
@@ -259,9 +262,7 @@ function newFile(string $dir): void {
         
         // Reset POST data and show file manager
         $_POST = array();
-        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-            <p>File created successfully!</p>
-        </div>';
+        showAlert("File created successfully!", "success");
         fileManager($dir);
         return;
     }
@@ -292,10 +293,7 @@ function displayNewFileForm(string $dir): void {
 function newFolder(string $dir): void {
     if (isset($_POST['foldername'])) {
         if (empty($_POST['foldername'])) {
-            echo '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-                <p>Error: Folder name cannot be empty!</p>
-            </div>';
-            // Show the form again
+            showAlert("Folder name cannot be empty!", "error");
             displayNewFolderForm($dir);
             return;
         }
@@ -305,9 +303,7 @@ function newFolder(string $dir): void {
         
         // Reset POST data and show file manager
         $_POST = array();
-        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-            <p>Folder created successfully!</p>
-        </div>';
+        showAlert("Folder created successfully!", "success");
         fileManager($dir);
         return;
     }
@@ -367,24 +363,33 @@ function renameFile(string $file): void {
     $dirname = dirname($file);
     
     if (isset($_POST['newname'])) {
+        if (empty($_POST['newname'])) {
+            showAlert("New name cannot be empty!", "error");
+            displayRenameForm($file);
+            return;
+        }
+        
         $newname = $dirname . DIRECTORY_SEPARATOR . $_POST['newname'];
         rename($file, $newname);
         
         // Reset POST data and show file manager
         $_POST = array();
-        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-            <p>File renamed successfully!</p>
-        </div>';
+        showAlert("File renamed successfully!", "success");
         fileManager($dirname);
         return;
     }
     
+    displayRenameForm($file);
+}
+
+function displayRenameForm(string $file): void {
+    $dirname = dirname($file);
     echo '<div class="container mx-auto p-4">';
     echo '<h2 class="text-xl font-bold mb-4">Rename: ' . htmlspecialchars(basename($file)) . '</h2>';
     echo '<form method="post">';
     echo '<div class="mb-4">';
     echo '<label class="block text-gray-700">New Name:</label>';
-    echo '<input type="text" name="newname" value="' . htmlspecialchars(basename($file)) . '" class="w-full p-2 border border-gray-300 rounded">';
+    echo '<input type="text" name="newname" value="' . htmlspecialchars(basename($file)) . '" class="w-full p-2 border border-gray-300 rounded" required>';
     echo '</div>';
     echo '<div class="flex space-x-2">';
     echo '<button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Rename</button>';
@@ -398,24 +403,33 @@ function chmodFile(string $file): void {
     $dirname = dirname($file);
     
     if (isset($_POST['permission'])) {
+        if (!preg_match('/^[0-7]{3,4}$/', $_POST['permission'])) {
+            showAlert("Invalid permission format!", "error");
+            displayChmodForm($file);
+            return;
+        }
+        
         $permission = octdec($_POST['permission']);
         chmod($file, $permission);
         
         // Reset POST data and show file manager
         $_POST = array();
-        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-            <p>Permissions changed successfully!</p>
-        </div>';
+        showAlert("Permissions changed successfully!", "success");
         fileManager($dirname);
         return;
     }
     
+    displayChmodForm($file);
+}
+
+function displayChmodForm(string $file): void {
+    $dirname = dirname($file);
     echo '<div class="container mx-auto p-4">';
     echo '<h2 class="text-xl font-bold mb-4">Change Permission: ' . htmlspecialchars(basename($file)) . '</h2>';
     echo '<form method="post">';
     echo '<div class="mb-4">';
     echo '<label class="block text-gray-700">Permission (octal):</label>';
-    echo '<input type="text" name="permission" value="' . substr(sprintf('%o', fileperms($file)), -4) . '" class="w-full p-2 border border-gray-300 rounded">';
+    echo '<input type="text" name="permission" value="' . substr(sprintf('%o', fileperms($file)), -4) . '" class="w-full p-2 border border-gray-300 rounded" required pattern="[0-7]{3,4}">';
     echo '</div>';
     echo '<div class="flex space-x-2">';
     echo '<button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Change</button>';
@@ -478,8 +492,65 @@ $currentTime = date('Y-m-d H:i:s');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ophellia <?= VERSION ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+            width: auto;
+        }
+        .alert {
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+        }
+        .alert-success {
+            background-color: #d1fae5;
+            border-left: 4px solid #10b981;
+            color: #065f46;
+        }
+        .alert-error {
+            background-color: #fee2e2;
+            border-left: 4px solid #ef4444;
+            color: #991b1b;
+        }
+        .close-alert {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 18px;
+            margin-left: 15px;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- Alert Container -->
+    <div id="alertContainer" class="alert-container"></div>
+    
     <header class="bg-gray-800 text-white p-4">
         <div class="container mx-auto">
             <h1 class="text-xl font-bold">Ophellia <?= VERSION ?></h1>
@@ -555,5 +626,53 @@ $currentTime = date('Y-m-d H:i:s');
             <p>Ophellia <?= VERSION ?> - Simplified File Manager</p>
         </div>
     </footer>
+
+    <script>
+        // Alert management
+        let alertCounter = 0;
+        
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertId = `alert-${alertCounter++}`;
+            
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+            
+            const alertElement = document.createElement('div');
+            alertElement.className = `alert ${alertClass}`;
+            alertElement.id = alertId;
+            
+            alertElement.innerHTML = `
+                <div>${message}</div>
+                <span class="close-alert" onclick="closeAlert('${alertId}')">&times;</span>
+            `;
+            
+            alertContainer.appendChild(alertElement);
+            
+            // Auto-close after 5 seconds
+            setTimeout(() => {
+                closeAlert(alertId);
+            }, 5000);
+        }
+        
+        function closeAlert(alertId) {
+            const alertElement = document.getElementById(alertId);
+            if (alertElement) {
+                alertElement.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => {
+                    alertElement.remove();
+                }, 300);
+            }
+        }
+        
+        // Display all stored alerts once the page is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            <?php
+            // Output the JavaScript code to show all buffered alerts
+            foreach ($alertMessages as $alert) {
+                echo "showAlert('" . addslashes($alert['message']) . "', '" . $alert['type'] . "');\n";
+            }
+            ?>
+        });
+    </script>
 </body>
 </html>
