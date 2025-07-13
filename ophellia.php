@@ -47,19 +47,34 @@ function getPerms(string $file): string {
     $info = '';
     
     // Owner
-    $info .= (($perms & 0x0100) ? 'r' : '-');
-    $info .= (($perms & 0x0080) ? 'w' : '-');
-    $info .= (($perms & 0x0040) ? (($perms & 0x0800) ? 's' : 'x' ) : (($perms & 0x0800) ? 'S' : '-'));
+    $info .= '<span class="' . ($perms & 0x0100 ? 'text-blue-600' : 'text-gray-400') . '">' . (($perms & 0x0100) ? 'r' : '-') . '</span>';
+    $info .= '<span class="' . ($perms & 0x0080 ? 'text-green-600' : 'text-gray-400') . '">' . (($perms & 0x0080) ? 'w' : '-') . '</span>';
+    
+    if ($perms & 0x0040) {
+        $info .= '<span class="text-red-600">' . (($perms & 0x0800) ? 's' : 'x') . '</span>';
+    } else {
+        $info .= '<span class="' . ($perms & 0x0800 ? 'text-purple-600' : 'text-gray-400') . '">' . (($perms & 0x0800) ? 'S' : '-') . '</span>';
+    }
     
     // Group
-    $info .= (($perms & 0x0020) ? 'r' : '-');
-    $info .= (($perms & 0x0010) ? 'w' : '-');
-    $info .= (($perms & 0x0008) ? (($perms & 0x0400) ? 's' : 'x' ) : (($perms & 0x0400) ? 'S' : '-'));
+    $info .= '<span class="' . ($perms & 0x0020 ? 'text-blue-600' : 'text-gray-400') . '">' . (($perms & 0x0020) ? 'r' : '-') . '</span>';
+    $info .= '<span class="' . ($perms & 0x0010 ? 'text-green-600' : 'text-gray-400') . '">' . (($perms & 0x0010) ? 'w' : '-') . '</span>';
+    
+    if ($perms & 0x0008) {
+        $info .= '<span class="text-red-600">' . (($perms & 0x0400) ? 's' : 'x') . '</span>';
+    } else {
+        $info .= '<span class="' . ($perms & 0x0400 ? 'text-purple-600' : 'text-gray-400') . '">' . (($perms & 0x0400) ? 'S' : '-') . '</span>';
+    }
     
     // World
-    $info .= (($perms & 0x0004) ? 'r' : '-');
-    $info .= (($perms & 0x0002) ? 'w' : '-');
-    $info .= (($perms & 0x0001) ? (($perms & 0x0200) ? 't' : 'x' ) : (($perms & 0x0200) ? 'T' : '-'));
+    $info .= '<span class="' . ($perms & 0x0004 ? 'text-blue-600' : 'text-gray-400') . '">' . (($perms & 0x0004) ? 'r' : '-') . '</span>';
+    $info .= '<span class="' . ($perms & 0x0002 ? 'text-green-600' : 'text-gray-400') . '">' . (($perms & 0x0002) ? 'w' : '-') . '</span>';
+    
+    if ($perms & 0x0001) {
+        $info .= '<span class="text-red-600">' . (($perms & 0x0200) ? 't' : 'x') . '</span>';
+    } else {
+        $info .= '<span class="' . ($perms & 0x0200 ? 'text-purple-600' : 'text-gray-400') . '">' . (($perms & 0x0200) ? 'T' : '-') . '</span>';
+    }
     
     return $info;
 }
@@ -112,7 +127,9 @@ function breadcrumbPath(string $path): string {
     return $result;
 }
 
-function fileManager(string $dir): void {
+function renderFileTable(string $dir): string {
+    ob_start(); // Start output buffering
+    
     $allItems = array_diff(scandir($dir), ['.', '..']);
     
     // Separate folders and files, then sort them separately
@@ -186,12 +203,22 @@ function fileManager(string $dir): void {
         }
         
         echo '<a href="?action=rename&file=' . encryptPath($fullPath) . '" class="text-yellow-600 hover:underline">Rename</a> ';
-        echo '<a href="?action=chmod&file=' . encryptPath($fullPath) . '" class="text-purple-600 hover:underline">Chmod</a>';
+        echo '<a href="?action=chmod&file=' . encryptPath($fullPath) . '" class="text-purple-600 hover:underline">Chmod</a> ';
+        echo '<a href="#" onclick="showDeleteModal(\'' . addslashes(htmlspecialchars($item)) . '\', \'' . encryptPath($fullPath) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="text-red-600 hover:underline">Delete</a>';
         echo '</div>';
         echo '</td></tr>';
     }
     
     echo '</tbody></table></div>';
+    
+    // Get the buffered content
+    return ob_get_clean();
+}
+
+function fileManager(string $dir): void {
+    echo '<div id="file-manager-content">';
+    echo renderFileTable($dir);
+    echo '</div>';
     
     // Add subtle custom CSS for scrollbars that only appear when needed
     echo '<style>
@@ -484,12 +511,73 @@ function displayChmodForm(string $file): void {
     echo '</div>';
 }
 
+function deleteFile(string $file): bool {
+    $isDir = is_dir($file);
+    
+    if ($isDir) {
+        // For directories, try to remove recursively
+        $success = deleteDirectory($file);
+    } else {
+        // For files, simply unlink
+        $success = @unlink($file);
+    }
+    
+    return $success;
+}
+
+function deleteDirectory(string $dir): bool {
+    if (!is_dir($dir)) {
+        return false;
+    }
+    
+    $objects = scandir($dir);
+    foreach ($objects as $object) {
+        if ($object !== '.' && $object !== '..') {
+            $path = $dir . DIRECTORY_SEPARATOR . $object;
+            if (is_dir($path)) {
+                deleteDirectory($path);
+            } else {
+                @unlink($path);
+            }
+        }
+    }
+    
+    return @rmdir($dir);
+}
+
 session_start();
 error_reporting(0);
 set_time_limit(0);
 ini_set('memory_limit', '256M');
 
-// Handle download first
+// Handle AJAX delete request
+if (isset($_POST['ajax_delete'])) {
+    if (authenticate()) {
+        $file = decryptPath($_POST['path']);
+        $dirname = dirname($file);
+        $isDir = is_dir($file);
+        $success = deleteFile($file);
+        
+        $message = ($isDir ? "Directory" : "File") . ($success ? " deleted successfully" : " deletion failed");
+        
+        // Return JSON response with updated file table HTML
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $success,
+            'message' => $message,
+            'fileTableHtml' => renderFileTable($dirname)
+        ]);
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Authentication failed'
+        ]);
+    }
+    exit;
+}
+
+// Handle download
 if (isset($_GET['download'])) {
     $file = decryptPath($_GET['download']);
     downloadFile($file);
@@ -572,6 +660,27 @@ $currentTime = date('Y-m-d H:i:s');
             font-size: 18px;
             margin-left: 15px;
         }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 100;
+            overflow: auto;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            animation: slideDown 0.3s ease-out;
+        }
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -590,11 +699,58 @@ $currentTime = date('Y-m-d H:i:s');
                 opacity: 0;
             }
         }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .overflow-x-auto::-webkit-scrollbar {
+            height: 6px;
+        }
+        .overflow-x-auto::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .overflow-x-auto::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <!-- Alert Container -->
     <div id="alertContainer" class="alert-container"></div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h2 id="deleteModalTitle" class="text-xl font-bold mb-4 text-red-600"></h2>
+            <p id="deleteModalMessage" class="mb-4"></p>
+            <div id="deleteModalWarning" class="mb-4 font-semibold text-red-600 hidden">
+                Warning: This will recursively delete all contents of the directory!
+            </div>
+            <div class="flex space-x-2">
+                <button id="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Delete</button>
+                <button id="cancelDelete" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancel</button>
+            </div>
+            <input type="hidden" id="deleteFilePath" value="">
+        </div>
+    </div>
     
     <header class="bg-gray-800 text-white p-4">
         <div class="container mx-auto">
@@ -708,6 +864,69 @@ $currentTime = date('Y-m-d H:i:s');
                 }, 300);
             }
         }
+        
+        // Delete modal functionality
+        function showDeleteModal(filename, filePath, isDirectory) {
+            const modal = document.getElementById('deleteModal');
+            const title = document.getElementById('deleteModalTitle');
+            const message = document.getElementById('deleteModalMessage');
+            const warning = document.getElementById('deleteModalWarning');
+            const filePathInput = document.getElementById('deleteFilePath');
+            
+            title.textContent = `Delete ${isDirectory ? 'Directory' : 'File'}`;
+            message.textContent = `Are you sure you want to delete "${filename}"? This action cannot be undone.`;
+            filePathInput.value = filePath;
+            
+            if (isDirectory) {
+                warning.classList.remove('hidden');
+            } else {
+                warning.classList.add('hidden');
+            }
+            
+            modal.style.display = 'block';
+        }
+        
+        document.getElementById('confirmDelete').addEventListener('click', function() {
+            const filePath = document.getElementById('deleteFilePath').value;
+            const modal = document.getElementById('deleteModal');
+            
+            // Use fetch API to send the delete request
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `ajax_delete=1&path=${filePath}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                modal.style.display = 'none';
+                
+                if (data.success) {
+                    // Update the file table with the new HTML
+                    document.getElementById('file-manager-content').innerHTML = data.fileTableHtml;
+                    showAlert(data.message, "success");
+                } else {
+                    showAlert("Failed to delete: " + data.message, "error");
+                }
+            })
+            .catch(error => {
+                modal.style.display = 'none';
+                showAlert("Error: " + error, "error");
+            });
+        });
+        
+        document.getElementById('cancelDelete').addEventListener('click', function() {
+            document.getElementById('deleteModal').style.display = 'none';
+        });
+        
+        // Close modal if clicked outside
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('deleteModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
         
         // Display all stored alerts once the page is loaded
         document.addEventListener('DOMContentLoaded', function() {
