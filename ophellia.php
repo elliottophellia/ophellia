@@ -347,24 +347,12 @@ function viewFile(string $file): void
     echo '</div>';
 
     // File info section
-    echo '<div class="p-4 sm:p-6 bg-surface-container-low border-b border-outline-variant">';
-    echo '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">';
-    echo '<div class="flex items-start gap-2">';
-    echo '<span class="font-medium text-on-surface-variant min-w-[80px]">Path:</span>';
-    echo '<span class="text-on-surface break-all font-mono text-xs bg-surface px-2 py-1 rounded border border-outline-variant flex-1">' . htmlspecialchars($file) . '</span>';
-    echo '</div>';
-    echo '<div class="flex items-center gap-2">';
-    echo '<span class="font-medium text-on-surface-variant min-w-[80px]">Size:</span>';
-    echo '<span class="text-on-surface font-mono">' . formatSize(filesize($file)) . '</span>';
-    echo '</div>';
-    echo '<div class="flex items-center gap-2">';
-    echo '<span class="font-medium text-on-surface-variant min-w-[80px]">Permissions:</span>';
+    echo '<div class="px-4 sm:px-6 py-3 bg-surface-container-low border-b border-outline-variant">';
+    echo '<div class="text-on-surface-variant font-mono text-xs break-all mb-2">' . htmlspecialchars($file) . '</div>';
+    echo '<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant">';
+    echo '<span>' . formatSize(filesize($file)) . '</span>';
     echo '<span>' . getPerms($file) . '</span>';
-    echo '</div>';
-    echo '<div class="flex items-center gap-2">';
-    echo '<span class="font-medium text-on-surface-variant min-w-[80px]">Modified:</span>';
-    echo '<span class="text-on-surface">' . date("Y-m-d H:i:s", filemtime($file)) . '</span>';
-    echo '</div>';
+    echo '<span>' . date("Y-m-d H:i:s", filemtime($file)) . '</span>';
     echo '</div>';
     echo '</div>';
 
