@@ -1,0 +1,450 @@
+/* CSS Variables are defined inline in PHP for theme support */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+/* Alert Styles */
+.alert-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    max-width: min(400px, 90vw);
+    width: auto;
+}
+
+.alert {
+    margin-bottom: 10px;
+    padding: 15px 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    backdrop-filter: blur(10px);
+}
+
+.alert-success {
+    background-color: var(--surface-container-high);
+    border-left: 4px solid var(--success);
+    color: var(--on-surface);
+}
+
+.alert-error {
+    background-color: var(--surface-container-high);
+    border-left: 4px solid var(--error);
+    color: var(--on-surface);
+}
+
+.close-alert {
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 20px;
+    margin-left: 15px;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.close-alert:hover {
+    opacity: 1;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 100;
+    overflow: auto;
+    animation: fadeIn 0.2s ease-out;
+    backdrop-filter: blur(4px);
+    padding: 20px;
+}
+
+.modal-content {
+    background-color: var(--surface);
+    margin: 5vh auto;
+    border-radius: 20px;
+    max-width: min(480px, 90vw);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: slideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden;
+}
+
+.modal-content.modal-lg {
+    max-width: min(800px, 95vw);
+}
+
+.modal-content.modal-xl {
+    max-width: min(1200px, 98vw);
+    margin: 2vh auto;
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--outline-variant);
+    background-color: var(--surface-container);
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    background-color: var(--surface-container);
+    border-top: 1px solid var(--outline-variant);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Button Styles - Unified */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn svg {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: var(--on-primary);
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-success {
+    background-color: var(--primary);
+    color: var(--on-primary);
+}
+
+.btn-success:hover {
+    opacity: 0.9;
+}
+
+.btn-danger {
+    background-color: var(--error);
+    color: var(--on-error);
+}
+
+.btn-danger:hover {
+    opacity: 0.9;
+}
+
+.btn-warning {
+    background-color: var(--primary);
+    color: var(--on-primary);
+}
+
+.btn-warning:hover {
+    opacity: 0.9;
+}
+
+.btn-secondary {
+    background-color: var(--surface-container-high);
+    color: var(--on-surface);
+}
+
+.btn-secondary:hover {
+    background-color: var(--surface-container-highest);
+}
+
+.btn-ghost {
+    background-color: transparent;
+    color: var(--on-surface-variant);
+}
+
+.btn-ghost:hover {
+    background-color: var(--surface-container);
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--on-surface);
+    margin-bottom: 6px;
+}
+
+.form-input,
+.form-textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--outline-variant);
+    border-radius: 12px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background-color: var(--surface);
+    color: var(--on-surface);
+}
+
+.form-input:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(255, 181, 156, 0.2);
+}
+
+.form-textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    resize: vertical;
+    min-height: 200px;
+}
+
+.form-hint {
+    font-size: 12px;
+    color: var(--on-surface-variant);
+    margin-top: 4px;
+}
+
+/* Info Box */
+.info-box {
+    padding: 12px 16px;
+    background-color: var(--surface-container);
+    border-radius: 12px;
+    border: 1px solid var(--outline-variant);
+    margin-bottom: 20px;
+}
+
+.info-box-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.info-box-label {
+    font-size: 13px;
+    color: var(--on-surface-variant);
+    flex-shrink: 0;
+}
+
+.info-box-value {
+    font-size: 13px;
+    color: var(--on-surface);
+    font-weight: 500;
+    word-break: break-all;
+    text-align: right;
+}
+
+.info-box-value.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Table Styles */
+.file-list-container {
+    width: 100%;
+}
+
+#desktopFileTable {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+#desktopFileTable th {
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    font-size: 0.75rem;
+}
+
+#desktopFileTable td {
+    transition: background-color 0.15s ease;
+}
+
+/* Mobile Card Styles */
+.file-card {
+    transition: all 0.2s ease;
+}
+
+.file-card:active {
+    transform: scale(0.98);
+}
+
+/* Search Input */
+#fileSearch {
+    transition: all 0.2s ease;
+}
+
+#fileSearch:focus {
+    box-shadow: 0 0 0 3px rgba(255, 181, 156, 0.2);
+}
+
+/* Path Navigator */
+.path-navigator {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.path-navigator a {
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.path-navigator a:hover {
+    background-color: var(--surface-container-high);
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--surface-container);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--outline-variant);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--outline);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .alert-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+
+    .alert {
+        width: 100%;
+    }
+
+    .modal-content {
+        margin: 5vh auto;
+        padding: 20px;
+    }
+}
+
+/* Button Hover Effects */
+.action-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.action-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+.action-btn:active::after {
+    width: 100%;
+    height: 100%;
+}
+
+/* Empty State Animation */
+#emptyState {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Focus Styles for Accessibility */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Selection Color */
+::selection {
+    background-color: var(--primary);
+    color: var(--on-primary);
+}
