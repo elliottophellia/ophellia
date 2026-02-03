@@ -527,6 +527,167 @@ function showCommandModal(encryptedPath) {
     });
 }
 
+// Upload Modal
+function showUploadModal(encryptedPath) {
+    const html = `
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="modal-header">
+                <h2 class="text-xl font-bold text-primary flex items-center gap-3">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    <span>Upload File</span>
+                </h2>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Upload to</label>
+                    <div style="display: flex; gap: 20px; margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--on-surface);">
+                            <input type="radio" name="upload_to_root" value="0" checked style="accent-color: var(--primary); width: 16px; height: 16px; cursor: pointer;">
+                            <span>Current directory</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--on-surface);">
+                            <input type="radio" name="upload_to_root" value="1" style="accent-color: var(--primary); width: 16px; height: 16px; cursor: pointer;">
+                            <span>Root directory</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Select File</label>
+                    <div id="fileUploadArea" style="border: 2px dashed var(--outline-variant); border-radius: 12px; padding: 32px 24px; cursor: pointer; background: var(--surface-container-lowest); transition: all 0.2s; margin-top: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
+                        <input type="file" id="uploadFile" name="file" required style="display: none;">
+                        <svg style="width: 40px; height: 40px; color: var(--primary);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        <div style="color: var(--on-surface); font-size: 14px; font-weight: 500;">Click to select file</div>
+                        <div id="selectedFileName" style="color: var(--primary); font-size: 13px; font-weight: 600; display: none; margin-top: 4px;"></div>
+                    </div>
+                </div>
+                <div id="uploadProgress" style="display: none;">
+                    <div style="background: var(--surface-container-highest); border-radius: 12px; padding: 16px; text-align: center; color: var(--primary); font-size: 14px;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <svg class="animate-spin" style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Uploading...</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="uploadResult" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" id="uploadSubmitBtn" class="btn btn-primary">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    <span>Upload</span>
+                </button>
+                <button type="button" class="btn btn-secondary" data-modal-close>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    <span>Close</span>
+                </button>
+            </div>
+        </form>
+    `;
+    Modal.open(html);
+
+    // Get references after modal is opened
+    const form = document.getElementById('uploadForm');
+    const progress = document.getElementById('uploadProgress');
+    const result = document.getElementById('uploadResult');
+    const submitBtn = document.getElementById('uploadSubmitBtn');
+    const fileInput = document.getElementById('uploadFile');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const selectedFileName = document.getElementById('selectedFileName');
+
+    // Click on dropzone to open file picker
+    fileUploadArea.addEventListener('click', function() {
+        fileInput.click();
+    });
+
+    // Handle file selection
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            selectedFileName.textContent = this.files[0].name;
+            selectedFileName.style.display = 'block';
+            fileUploadArea.style.borderColor = 'var(--primary)';
+            fileUploadArea.style.background = 'var(--primary-container)';
+        }
+    });
+
+    // Drag and drop effects
+    fileUploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.style.borderColor = 'var(--primary)';
+        this.style.background = 'var(--primary-container)';
+    });
+
+    fileUploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        if (!fileInput.files || !fileInput.files[0]) {
+            this.style.borderColor = 'var(--outline-variant)';
+            this.style.background = 'var(--surface-container-lowest)';
+        }
+    });
+
+    fileUploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            selectedFileName.textContent = files[0].name;
+            selectedFileName.style.display = 'block';
+            this.style.borderColor = 'var(--primary)';
+            this.style.background = 'var(--primary-container)';
+        }
+    });
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        formData.append('ajax_upload', '1');
+        formData.append('path', encryptedPath);
+
+        progress.style.display = 'block';
+        result.style.display = 'none';
+        submitBtn.disabled = true;
+
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                progress.style.display = 'none';
+                submitBtn.disabled = false;
+
+                if (data.success) {
+                    result.innerHTML = `<div style="background: var(--success-container); color: var(--on-success-container); padding: 12px; border-radius: 8px; font-size: 14px;">${escapeHtml(data.message)}</div>`;
+                    result.style.display = 'block';
+                    form.reset();
+                    // Refresh file list after successful upload
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    result.innerHTML = `<div style="background: var(--error-container); color: var(--on-error-container); padding: 12px; border-radius: 8px; font-size: 14px;">${escapeHtml(data.message)}</div>`;
+                    result.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                progress.style.display = 'none';
+                submitBtn.disabled = false;
+                result.innerHTML = `<div style="background: var(--error-container); color: var(--on-error-container); padding: 12px; border-radius: 8px; font-size: 14px;">Error: ${escapeHtml(error.message)}</div>`;
+                result.style.display = 'block';
+            });
+    });
+}
+
 // Information Modal
 function showInfoModal() {
     const html = `
@@ -576,6 +737,7 @@ function showInfoModal() {
                             <div style="display: grid; gap: 8px; font-size: 13px;">
                                 <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Version</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.version)}</span></div>
                                 <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">SAPI</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.sapi)}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Safe Mode</span><span style="color: ${info.php.safe_mode === 'On' ? 'var(--error)' : 'var(--success)'}; font-family: monospace;">${escapeHtml(info.php.safe_mode)}</span></div>
                                 <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Memory Limit</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.memory_limit)}</span></div>
                                 <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Max Execution</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.max_execution_time)}s</span></div>
                                 <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Upload Max</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.php.upload_max_filesize)}</span></div>
@@ -586,6 +748,7 @@ function showInfoModal() {
                             <div style="font-weight: 600; color: var(--primary); margin-bottom: 12px; font-size: 14px;">System</div>
                             <div style="display: grid; gap: 8px; font-size: 13px;">
                                 <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">OS</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.system.os)} (${escapeHtml(info.system.os_family)})</span></div>
+                                <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Kernel</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.system.kernel)}</span></div>
                                 <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Hostname</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.system.hostname)}</span></div>
                                 <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">User</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.system.current_user)}</span></div>
                                 <div style="display: flex; justify-content: space-between;"><span style="color: var(--on-surface-variant);">Temp Dir</span><span style="color: var(--on-surface); font-family: monospace;">${escapeHtml(info.system.temp_dir)}</span></div>
