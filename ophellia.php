@@ -6,14 +6,32 @@ const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4
 
 $alertMessages = [];
 
-function encryptPath(string $path): string
+function encryptPath(string $p): string
 {
-    return unpack('H*', $path)[1];
+    if ($p === '')
+        return '';
+    $v = md5($p . PASSWORD_HASH, true);
+    $o = ord($v[0]);
+    $e = '';
+    for ($i = 0, $l = strlen($p); $i < $l; $i++)
+        $e .= chr(ord($p[$i]) ^ ord(PASSWORD_HASH[($i + $o) % 60]) ^ ord($v[$i % 16]));
+    return bin2hex($v . $e);
 }
 
-function decryptPath(string $path): string
+function decryptPath(string $h): string
 {
-    return pack('H*', $path);
+    if ($h === '' || strlen($h) < 32)
+        return '';
+    $d = pack('H*', $h);
+    $v = substr($d, 0, 16);
+    $e = substr($d, 16);
+    if ($e === '')
+        return '';
+    $o = ord($v[0]);
+    $r = '';
+    for ($i = 0, $l = strlen($e); $i < $l; $i++)
+        $r .= chr(ord($e[$i]) ^ ord(PASSWORD_HASH[($i + $o) % 60]) ^ ord($v[$i % 16]));
+    return $r;
 }
 
 function authenticate(): bool
@@ -1603,8 +1621,6 @@ $currentTime = date('Y-m-d H:i:s');
                     <span class="text-sm">
                         <a href="https://rei.my.id" class="hover:text-primary transition-colors">@elliottophellia</a>
                     </span>
-                    <span class="hidden sm:inline text-outline">&bull;</span>
-                    <span class="text-xs text-on-surface-variant">v<?= VERSION ?></span>
                 </div>
                 <div class="flex items-center gap-4 text-sm">
                     <a href="https://t.me/elliottophellia"
