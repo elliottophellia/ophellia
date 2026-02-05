@@ -1,4 +1,3 @@
-// Alert management
 let alertCounter = 0;
 
 function showAlert(message, type) {
@@ -26,7 +25,6 @@ function showAlert(message, type) {
 
     alertContainer.appendChild(alertElement);
 
-    // Auto-close after 5 seconds
     setTimeout(() => {
         closeAlert(alertId);
     }, 5000);
@@ -42,7 +40,6 @@ function closeAlert(alertId) {
     }
 }
 
-// Unified Modal System
 const Modal = {
     element: null,
     content: null,
@@ -60,13 +57,11 @@ const Modal = {
         this.element.style.display = 'block';
         document.body.style.overflow = 'hidden';
 
-        // Attach close handlers
         const closeBtns = this.content.querySelectorAll('[data-modal-close]');
         closeBtns.forEach(btn => {
             btn.addEventListener('click', () => this.close());
         });
 
-        // Attach form submit handlers
         const forms = this.content.querySelectorAll('form[data-ajax]');
         forms.forEach(form => {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
@@ -133,7 +128,6 @@ const Modal = {
     }
 };
 
-// Close modal on outside click
 window.addEventListener('click', function (event) {
     if (!Modal.element) Modal.init();
     if (event.target === Modal.element) {
@@ -141,7 +135,6 @@ window.addEventListener('click', function (event) {
     }
 });
 
-// Close modal on Escape key
 document.addEventListener('keydown', function (event) {
     if (!Modal.element) Modal.init();
     if (event.key === 'Escape' && Modal.element.style.display === 'block') {
@@ -149,7 +142,6 @@ document.addEventListener('keydown', function (event) {
     }
 });
 
-// Delete Modal
 function showDeleteModal(filename, filePath, isDirectory) {
     const html = `
         <div class="modal-header">
@@ -219,7 +211,6 @@ function confirmDelete(filePath) {
         });
 }
 
-// Rename Modal
 function showRenameModal(filename, filePath, isDirectory) {
     const html = `
         <form data-ajax method="post">
@@ -264,7 +255,6 @@ function showRenameModal(filename, filePath, isDirectory) {
     Modal.open(html);
 }
 
-// Chmod Modal
 function showChmodModal(filename, filePath, currentPerms, isDirectory) {
     const html = `
         <form data-ajax method="post">
@@ -331,7 +321,6 @@ function showChmodModal(filename, filePath, currentPerms, isDirectory) {
     Modal.open(html);
 }
 
-// New File Modal
 function showNewFileModal(dirPath) {
     const html = `
         <form data-ajax method="post" class="modal-form">
@@ -374,7 +363,6 @@ function showNewFileModal(dirPath) {
     Modal.open(html, 'modal-lg');
 }
 
-// New Folder Modal
 function showNewFolderModal(dirPath) {
     const html = `
         <form data-ajax method="post">
@@ -413,7 +401,6 @@ function showNewFolderModal(dirPath) {
     Modal.open(html);
 }
 
-// Command Modal
 function showCommandModal(encryptedPath) {
     const html = `
         <form method="post" id="commandForm">
@@ -461,13 +448,11 @@ function showCommandModal(encryptedPath) {
     `;
     Modal.open(html, 'modal-lg');
 
-    // Get references after modal is opened
     const form = document.getElementById('commandForm');
     const outputContainer = document.getElementById('commandOutputContainer');
     const outputPre = document.getElementById('commandOutputPre');
     const executeBtn = document.getElementById('cmdExecuteBtn');
 
-    // Form submission for command modal
     form.addEventListener('submit', function (e) {
         e.preventDefault();
 
@@ -479,7 +464,6 @@ function showCommandModal(encryptedPath) {
             return;
         }
 
-        // Show loading state
         Modal.setLoading(executeBtn, true);
         outputContainer.style.display = 'block';
         outputPre.textContent = 'Executing...';
@@ -515,7 +499,6 @@ function showCommandModal(encryptedPath) {
                     outputPre.textContent = 'Error: ' + (data.message || 'Command failed');
                     outputPre.style.color = 'var(--error)';
                 }
-                // Scroll to bottom
                 outputPre.scrollTop = outputPre.scrollHeight;
             })
             .catch(error => {
@@ -527,7 +510,6 @@ function showCommandModal(encryptedPath) {
     });
 }
 
-// Upload Modal
 function showUploadModal(encryptedPath) {
     const html = `
         <form id="uploadForm" enctype="multipart/form-data">
@@ -595,7 +577,6 @@ function showUploadModal(encryptedPath) {
     `;
     Modal.open(html);
 
-    // Get references after modal is opened
     const form = document.getElementById('uploadForm');
     const progress = document.getElementById('uploadProgress');
     const result = document.getElementById('uploadResult');
@@ -604,13 +585,11 @@ function showUploadModal(encryptedPath) {
     const fileUploadArea = document.getElementById('fileUploadArea');
     const selectedFileName = document.getElementById('selectedFileName');
 
-    // Click on dropzone to open file picker
-    fileUploadArea.addEventListener('click', function() {
+    fileUploadArea.addEventListener('click', function () {
         fileInput.click();
     });
 
-    // Handle file selection
-    fileInput.addEventListener('change', function() {
+    fileInput.addEventListener('change', function () {
         if (this.files && this.files[0]) {
             selectedFileName.textContent = this.files[0].name;
             selectedFileName.style.display = 'block';
@@ -619,14 +598,13 @@ function showUploadModal(encryptedPath) {
         }
     });
 
-    // Drag and drop effects
-    fileUploadArea.addEventListener('dragover', function(e) {
+    fileUploadArea.addEventListener('dragover', function (e) {
         e.preventDefault();
         this.style.borderColor = 'var(--primary)';
         this.style.background = 'var(--primary-container)';
     });
 
-    fileUploadArea.addEventListener('dragleave', function(e) {
+    fileUploadArea.addEventListener('dragleave', function (e) {
         e.preventDefault();
         if (!fileInput.files || !fileInput.files[0]) {
             this.style.borderColor = 'var(--outline-variant)';
@@ -634,7 +612,7 @@ function showUploadModal(encryptedPath) {
         }
     });
 
-    fileUploadArea.addEventListener('drop', function(e) {
+    fileUploadArea.addEventListener('drop', function (e) {
         e.preventDefault();
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -670,7 +648,6 @@ function showUploadModal(encryptedPath) {
                     result.innerHTML = `<div style="background: var(--success-container); color: var(--on-success-container); padding: 12px; border-radius: 8px; font-size: 14px;">${escapeHtml(data.message)}</div>`;
                     result.style.display = 'block';
                     form.reset();
-                    // Refresh file list after successful upload
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
@@ -688,7 +665,6 @@ function showUploadModal(encryptedPath) {
     });
 }
 
-// Information Modal
 function showInfoModal() {
     const html = `
         <div class="modal-header">
@@ -809,14 +785,12 @@ function showInfoModal() {
         });
 }
 
-// Utility function to escape HTML
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Search functionality
 function initSearch() {
     const searchInput = document.getElementById('fileSearch');
     if (!searchInput) return;
@@ -831,7 +805,6 @@ function initSearch() {
         const query = this.value.toLowerCase().trim();
         let visibleCount = 0;
 
-        // Filter desktop rows
         desktopRows.forEach(row => {
             const filename = row.getAttribute('data-filename');
             if (filename && filename.includes(query)) {
@@ -842,7 +815,6 @@ function initSearch() {
             }
         });
 
-        // Filter mobile cards
         mobileCards.forEach(card => {
             const filename = card.getAttribute('data-filename');
             if (filename && filename.includes(query)) {
@@ -852,7 +824,6 @@ function initSearch() {
             }
         });
 
-        // Show/hide empty state
         if (visibleCount === 0 && query !== '') {
             emptyState.classList.remove('hidden');
             if (desktopTable) desktopTable.style.display = 'none';
@@ -865,7 +836,6 @@ function initSearch() {
     });
 }
 
-// Initialize on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function () {
     Modal.init();
     initSearch();

