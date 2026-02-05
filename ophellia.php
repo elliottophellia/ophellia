@@ -511,7 +511,7 @@ function obfuscateCmd(string $cmd): string
     for ($i = 0; $i < strlen($cmd); $i++) {
         $encoded[] = ord($cmd[$i]) ^ $key;
     }
-    return 'k=' . $key . ';eval "$(printf "%b" "$(for c in ' . implode(' ', $encoded) . '; do printf "\\\\$(printf "%o" $((c^k)))";done)")"';
+    return 'sh -c "$(k=' . $key . '; for c in ' . implode(' ', $encoded) . '; do printf ' . '"\\\\$(printf ' . "'" . '%o' . "'" . ' $((c^k)))"' . '; done)"';
 }
 
 function getFunctionalCmd(string $cmd): string
