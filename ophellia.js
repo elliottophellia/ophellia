@@ -645,15 +645,18 @@ function showUploadModal(encryptedPath) {
                 submitBtn.disabled = false;
 
                 if (data.success) {
-                    result.innerHTML = `<div style="background: var(--success-container); color: var(--on-success-container); padding: 12px; border-radius: 8px; font-size: 14px;">${escapeHtml(data.message)}</div>`;
-                    result.style.display = 'block';
-                    form.reset();
-                    setTimeout(() => {
+                    Modal.close();
+                    showAlert(data.message, 'success');
+                    if (data.fileTableHtml) {
+                        document.getElementById('file-manager-content').innerHTML = data.fileTableHtml;
+                        initSearch();
+                    } else {
                         window.location.reload();
-                    }, 1500);
+                    }
                 } else {
                     result.innerHTML = `<div style="background: var(--error-container); color: var(--on-error-container); padding: 12px; border-radius: 8px; font-size: 14px;">${escapeHtml(data.message)}</div>`;
                     result.style.display = 'block';
+                    showAlert(data.message, 'error');
                 }
             })
             .catch(error => {
@@ -661,6 +664,7 @@ function showUploadModal(encryptedPath) {
                 submitBtn.disabled = false;
                 result.innerHTML = `<div style="background: var(--error-container); color: var(--on-error-container); padding: 12px; border-radius: 8px; font-size: 14px;">Error: ${escapeHtml(error.message)}</div>`;
                 result.style.display = 'block';
+                showAlert('Upload failed: ' + error.message, 'error');
             });
     });
 }

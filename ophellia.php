@@ -908,7 +908,8 @@ if (isset($_POST['ajax_delete'])) {
         $isDir = is_dir($file);
         $success = deleteFile($file);
 
-        $message = ($isDir ? "Directory" : "File") . ($success ? " deleted successfully" : " deletion failed");
+        $type = $isDir ? "Directory" : "File";
+        $message = $success ? "$type deleted successfully" : "Delete failed: Could not delete $type";
 
         header('Content-Type: application/json');
         echo json_encode([
@@ -920,7 +921,7 @@ if (isset($_POST['ajax_delete'])) {
         header('Content-Type: application/json');
         echo json_encode([
             'success' => false,
-            'message' => 'Authentication failed'
+            'message' => 'Delete failed: Authentication required'
         ]);
     }
     exit;
@@ -936,7 +937,7 @@ if (isset($_POST['ajax_rename'])) {
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => 'New name cannot be empty'
+                'message' => 'Rename failed: New name cannot be empty'
             ]);
             exit;
         }
@@ -944,18 +945,19 @@ if (isset($_POST['ajax_rename'])) {
         $newPath = $dirname . DIRECTORY_SEPARATOR . $newname;
         $success = rename($file, $newPath);
         $isDir = is_dir($newPath);
+        $type = $isDir ? "Directory" : "File";
 
         header('Content-Type: application/json');
         echo json_encode([
             'success' => $success,
-            'message' => ($isDir ? "Directory" : "File") . ($success ? " renamed successfully" : " rename failed"),
+            'message' => $success ? "$type renamed successfully" : "Rename failed: Could not rename $type",
             'fileTableHtml' => renderFileTable($dirname)
         ]);
     } else {
         header('Content-Type: application/json');
         echo json_encode([
             'success' => false,
-            'message' => 'Authentication failed'
+            'message' => 'Rename failed: Authentication required'
         ]);
     }
     exit;
@@ -971,7 +973,7 @@ if (isset($_POST['ajax_chmod'])) {
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => 'Invalid permission format'
+                'message' => 'Chmod failed: Invalid permission format'
             ]);
             exit;
         }
@@ -981,14 +983,14 @@ if (isset($_POST['ajax_chmod'])) {
         header('Content-Type: application/json');
         echo json_encode([
             'success' => $success,
-            'message' => $success ? "Permissions changed successfully" : "Failed to change permissions",
+            'message' => $success ? "Permissions changed successfully" : "Chmod failed: Could not change permissions",
             'fileTableHtml' => renderFileTable($dirname)
         ]);
     } else {
         header('Content-Type: application/json');
         echo json_encode([
             'success' => false,
-            'message' => 'Authentication failed'
+            'message' => 'Chmod failed: Authentication required'
         ]);
     }
     exit;
@@ -1004,7 +1006,7 @@ if (isset($_POST['ajax_newfile'])) {
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => 'Filename cannot be empty'
+                'message' => 'Create file failed: Filename cannot be empty'
             ]);
             exit;
         }
@@ -1015,14 +1017,14 @@ if (isset($_POST['ajax_newfile'])) {
         header('Content-Type: application/json');
         echo json_encode([
             'success' => $success,
-            'message' => $success ? "File created successfully" : "Failed to create file",
+            'message' => $success ? "File created successfully" : "Create file failed: Could not create file",
             'fileTableHtml' => renderFileTable($dir)
         ]);
     } else {
         header('Content-Type: application/json');
         echo json_encode([
             'success' => false,
-            'message' => 'Authentication failed'
+            'message' => 'Create file failed: Authentication required'
         ]);
     }
     exit;
@@ -1037,7 +1039,7 @@ if (isset($_POST['ajax_newfolder'])) {
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => 'Folder name cannot be empty'
+                'message' => 'Create folder failed: Folder name cannot be empty'
             ]);
             exit;
         }
@@ -1048,14 +1050,14 @@ if (isset($_POST['ajax_newfolder'])) {
         header('Content-Type: application/json');
         echo json_encode([
             'success' => $success,
-            'message' => $success ? "Folder created successfully" : "Failed to create folder",
+            'message' => $success ? "Folder created successfully" : "Create folder failed: Could not create folder",
             'fileTableHtml' => renderFileTable($dir)
         ]);
     } else {
         header('Content-Type: application/json');
         echo json_encode([
             'success' => false,
-            'message' => 'Authentication failed'
+            'message' => 'Create folder failed: Authentication required'
         ]);
     }
     exit;
@@ -1070,7 +1072,7 @@ if (isset($_POST['ajax_command'])) {
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => 'Command cannot be empty'
+                'message' => 'Command failed: Command cannot be empty'
             ]);
             exit;
         }
@@ -1087,7 +1089,7 @@ if (isset($_POST['ajax_command'])) {
         header('Content-Type: application/json');
         echo json_encode([
             'success' => false,
-            'message' => 'Authentication failed'
+            'message' => 'Command failed: Authentication required'
         ]);
     }
     exit;
@@ -1099,7 +1101,7 @@ if (isset($_POST['ajax_upload'])) {
     if (!authenticate()) {
         echo json_encode([
             'success' => false,
-            'message' => 'Authentication failed'
+            'message' => 'Upload failed: Authentication required'
         ]);
         exit;
     }
@@ -1111,7 +1113,7 @@ if (isset($_POST['ajax_upload'])) {
     if (!is_dir($targetDir) || !is_writable($targetDir)) {
         echo json_encode([
             'success' => false,
-            'message' => 'Target directory is not writable'
+            'message' => 'Upload failed: Target directory is not writable'
         ]);
         exit;
     }
@@ -1119,18 +1121,18 @@ if (isset($_POST['ajax_upload'])) {
     if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
         $error = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
         $errorMsg = [
-            UPLOAD_ERR_INI_SIZE => 'File too large (php.ini limit)',
-            UPLOAD_ERR_FORM_SIZE => 'File too large (form limit)',
-            UPLOAD_ERR_PARTIAL => 'Partial upload',
-            UPLOAD_ERR_NO_FILE => 'No file uploaded',
-            UPLOAD_ERR_NO_TMP_DIR => 'No temp folder',
-            UPLOAD_ERR_CANT_WRITE => 'Write failed',
-            UPLOAD_ERR_EXTENSION => 'Upload blocked'
-        ][$error] ?? 'Upload failed';
+            UPLOAD_ERR_INI_SIZE => 'File exceeds server size limit',
+            UPLOAD_ERR_FORM_SIZE => 'File exceeds form size limit',
+            UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+            UPLOAD_ERR_NO_FILE => 'No file was selected',
+            UPLOAD_ERR_NO_TMP_DIR => 'Server missing temporary folder',
+            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+            UPLOAD_ERR_EXTENSION => 'Upload blocked by server extension'
+        ][$error] ?? 'Unknown upload error';
 
         echo json_encode([
             'success' => false,
-            'message' => $errorMsg
+            'message' => 'Upload failed: ' . $errorMsg
         ]);
         exit;
     }
@@ -1148,12 +1150,13 @@ if (isset($_POST['ajax_upload'])) {
     if (move_uploaded_file($_FILES['file']['tmp_name'], $targetPath)) {
         echo json_encode([
             'success' => true,
-            'message' => 'Uploaded: ' . $filename
+            'message' => 'File uploaded successfully: ' . $filename,
+            'fileTableHtml' => renderFileTable($targetDir)
         ]);
     } else {
         echo json_encode([
             'success' => false,
-            'message' => 'Failed to save file'
+            'message' => 'Upload failed: Could not save file to destination'
         ]);
     }
     exit;
@@ -1165,7 +1168,7 @@ if (isset($_POST['ajax_info'])) {
     if (!authenticate()) {
         echo json_encode([
             'success' => false,
-            'message' => 'Authentication failed'
+            'message' => 'Info failed: Authentication required'
         ]);
         exit;
     }
