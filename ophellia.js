@@ -18,7 +18,7 @@ function showAlert(message, type) {
             <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 ${iconPath}
             </svg>
-            <div>${message}</div>
+            <div>${escapeHtml(message)}</div>
         </div>
         <span class="close-alert" onclick="closeAlert('${alertId}')">&times;</span>
     `;
@@ -110,14 +110,14 @@ const Modal = {
                 return response.json();
             })
             .then(data => {
-                this.close();
                 if (data.success) {
+                    this.close();
                     if (data.fileTableHtml) {
-                        document.getElementById('file-manager-content').innerHTML = data.fileTableHtml;
-                        initSearch();
+                        refreshFileTable(data.fileTableHtml, formData.get('path'));
                     }
                     showAlert(data.message, 'success');
                 } else {
+                    this.setLoading(button, false);
                     showAlert(data.message || 'Action failed', 'error');
                 }
             })
@@ -186,23 +186,28 @@ function confirmDelete(filePath) {
     const button = Modal.content.querySelector('.btn-danger');
     Modal.setLoading(button, true);
 
+    const params = new URLSearchParams();
+    params.append('ajax_delete', '1');
+    params.append('path', filePath);
+    params.append('csrf_token', window.CSRF_TOKEN || '');
+
     fetch(window.location.href, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'ajax_delete=1&path=' + encodeURIComponent(filePath)
+        body: params.toString()
     })
         .then(response => {
             if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
             return response.json();
         })
         .then(data => {
-            Modal.close();
             if (data.success) {
-                document.getElementById('file-manager-content').innerHTML = data.fileTableHtml;
-                initSearch();
+                Modal.close();
+                refreshFileTable(data.fileTableHtml);
                 showAlert(data.message, 'success');
             } else {
-                showAlert('Failed to delete: ' + data.message, 'error');
+                Modal.setLoading(button, false);
+                showAlert(data.message || 'Failed to delete', 'error');
             }
         })
         .catch(error => {
@@ -216,6 +221,7 @@ function showRenameModal(filename, filePath, isDirectory) {
         <form data-ajax method="post">
             <input type="hidden" name="ajax_rename" value="1">
             <input type="hidden" name="path" value="${filePath}">
+            <input type="hidden" name="csrf_token" value="${window.CSRF_TOKEN || ''}">
             <div class="modal-header">
                 <h2 class="text-xl font-bold text-primary flex items-center gap-3">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,7 +239,7 @@ function showRenameModal(filename, filePath, isDirectory) {
                 </div>
                 <div class="form-group">
                     <label class="form-label">New Name</label>
-                    <input type="text" name="newname" value="${escapeHtml(filename)}" class="form-input" required autofocus>
+                    <input type="text" name="newname" value="${escapeHtml(filename)}" class="form-input" pattern="[^/\\\\]+" title="The name must not contain / or \" required autofocus>
                 </div>
             </div>
             <div class="modal-footer">
@@ -260,6 +266,7 @@ function showChmodModal(filename, filePath, currentPerms, isDirectory) {
         <form data-ajax method="post">
             <input type="hidden" name="ajax_chmod" value="1">
             <input type="hidden" name="path" value="${filePath}">
+            <input type="hidden" name="csrf_token" value="${window.CSRF_TOKEN || ''}">
             <div class="modal-header">
                 <h2 class="text-xl font-bold text-primary flex items-center gap-3">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -326,6 +333,7 @@ function showNewFileModal(dirPath) {
         <form data-ajax method="post" class="modal-form">
             <input type="hidden" name="ajax_newfile" value="1">
             <input type="hidden" name="path" value="${dirPath}">
+            <input type="hidden" name="csrf_token" value="${window.CSRF_TOKEN || ''}">
             <div class="modal-header">
                 <h2 class="text-xl font-bold text-primary flex items-center gap-3">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,7 +345,7 @@ function showNewFileModal(dirPath) {
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Filename</label>
-                    <input type="text" name="filename" class="form-input" placeholder="Enter filename (e.g., script.php)" required autofocus>
+                    <input type="text" name="filename" class="form-input" placeholder="Enter filename (e.g., script.php)" pattern="[^/\\\\]+" title="The filename must not contain / or \" required autofocus>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Content</label>
@@ -368,6 +376,7 @@ function showNewFolderModal(dirPath) {
         <form data-ajax method="post">
             <input type="hidden" name="ajax_newfolder" value="1">
             <input type="hidden" name="path" value="${dirPath}">
+            <input type="hidden" name="csrf_token" value="${window.CSRF_TOKEN || ''}">
             <div class="modal-header">
                 <h2 class="text-xl font-bold text-primary flex items-center gap-3">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -379,7 +388,7 @@ function showNewFolderModal(dirPath) {
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Folder Name</label>
-                    <input type="text" name="foldername" class="form-input" placeholder="Enter folder name" required autofocus>
+                    <input type="text" name="foldername" class="form-input" placeholder="Enter folder name" pattern="[^/\\\\]+" title="The folder name must not contain / or \" required autofocus>
                 </div>
             </div>
             <div class="modal-footer">
@@ -473,6 +482,7 @@ function showCommandModal(encryptedPath) {
         params.append('ajax_command', '1');
         params.append('path', encryptedPath);
         params.append('command', command);
+        params.append('csrf_token', window.CSRF_TOKEN || '');
 
         fetch(window.location.href, {
             method: 'POST',
@@ -630,6 +640,7 @@ function showUploadModal(encryptedPath) {
         const formData = new FormData(form);
         formData.append('ajax_upload', '1');
         formData.append('path', encryptedPath);
+        formData.append('csrf_token', window.CSRF_TOKEN || '');
 
         progress.style.display = 'block';
         result.style.display = 'none';
@@ -647,12 +658,7 @@ function showUploadModal(encryptedPath) {
                 if (data.success) {
                     Modal.close();
                     showAlert(data.message, 'success');
-                    if (data.fileTableHtml) {
-                        document.getElementById('file-manager-content').innerHTML = data.fileTableHtml;
-                        initSearch();
-                    } else {
-                        window.location.reload();
-                    }
+                    refreshFileTable(data.fileTableHtml, encryptedPath);
                 } else {
                     result.innerHTML = `<div style="background: var(--error-container); color: var(--on-error-container); padding: 12px; border-radius: 8px; font-size: 14px;">${escapeHtml(data.message)}</div>`;
                     result.style.display = 'block';
@@ -701,7 +707,7 @@ function showInfoModal() {
     fetch(baseUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'ajax_info=1'
+        body: 'ajax_info=1&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN || '')
     })
         .then(response => response.text())
         .then(text => {
@@ -795,6 +801,20 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function refreshFileTable(html, fallbackEncPath) {
+    const container = document.getElementById('file-manager-content');
+    if (container && html) {
+        container.innerHTML = html;
+        initSearch();
+    } else if (fallbackEncPath) {
+        window.location.href = '?cd=' + fallbackEncPath;
+    } else {
+        window.location.reload();
+    }
+}
+
+let lastSearchQuery = '';
+
 function initSearch() {
     const searchInput = document.getElementById('fileSearch');
     if (!searchInput) return;
@@ -805,8 +825,7 @@ function initSearch() {
     const desktopTable = document.getElementById('desktopFileTable');
     const mobileList = document.getElementById('mobileFileList');
 
-    searchInput.addEventListener('input', function () {
-        const query = this.value.toLowerCase().trim();
+    const applyQuery = function (query) {
         let visibleCount = 0;
 
         desktopRows.forEach(row => {
@@ -837,7 +856,19 @@ function initSearch() {
             if (desktopTable) desktopTable.style.display = '';
             if (mobileList) mobileList.style.display = '';
         }
+    };
+
+    searchInput.addEventListener('input', function () {
+        lastSearchQuery = this.value;
+        applyQuery(this.value.toLowerCase().trim());
     });
+
+    if (lastSearchQuery) {
+        searchInput.value = lastSearchQuery;
+        applyQuery(lastSearchQuery.toLowerCase().trim());
+        searchInput.focus();
+        searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function () {

